@@ -87,7 +87,7 @@ These are all variations on the absolute value of cohen’s d (see: <a class="re
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – Object from sample (with/without adjustment, but it needs some target)</p></li>
-<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – If to comapre also to linked sample objects (specifically: unadjusted), or not. Defaults to True.</p></li>
+<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – If to compare also to linked sample objects (specifically: unadjusted), or not. Defaults to True.</p></li>
 <li><p><strong>target</strong> (<em>Optional</em><em>[</em><em>&quot;BalanceDF&quot;</em><em>]</em><em>, </em><em>optional</em>) – A BalanceDF (of the same type as the one used in self) to compare against.
 If None then it looks for a target in the self linked objects. Defaults to None.</p></li>
 <li><p><strong>aggregate_by_main_covar</strong> (<em>bool</em><em>, </em><em>optional</em>) – Defaults to False.
@@ -263,6 +263,102 @@ If on_linked_samples is True, then two rows per source (self, unadjusted), each 
 </div>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF.ci_of_mean">
+<span class="sig-name descname"><span class="pre">ci_of_mean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDF.ci_of_mean"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDF.ci_of_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates a confidence intervals of the weighted mean on the df of the BalanceDF object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – Object.</p></li>
+<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – Should the calculation be on self AND the linked samples objects? Defaults to True.
+If True, then uses <code class="xref py py-func docutils literal notranslate"><span class="pre">_call_on_linked()</span></code> with method “ci_of_mean”.
+If False, then uses <code class="xref py py-func docutils literal notranslate"><span class="pre">_descriptive_stats()</span></code> with method “ci_of_mean”.</p></li>
+<li><p><strong>kwargs</strong> – we can pass ci_of_mean arguments. E.g.: conf_level and round_ndigits.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>With row per object: self if on_linked_samples=False, and self and others (e.g.: target and unadjusted) if True.
+Columns are for each of the columns in the relevant df (after applying <a class="reference internal" href="#balance.balancedf_class.BalanceDF.model_matrix" title="balance.balancedf_class.BalanceDF.model_matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">model_matrix()</span></code></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<dl>
+<dt>::</dt><dd><p>import pandas as pd
+from balance.sample_class import Sample
+from balance.stats_and_plots.weighted_stats import ci_of_weighted_mean</p>
+<p>ci_of_weighted_mean(pd.Series((1, 2, 3, 1)), pd.Series((0.5, 2, 1, 1)), round_ndigits = 3)
+# 0    (1.232, 2.545)
+# dtype: object
+# This shows we got the first cell of ‘a’ as expected.</p>
+<dl>
+<dt>s1 = Sample.from_frame(</dt><dd><dl>
+<dt>pd.DataFrame(</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“a”: (1, 2, 3, 1),
+“b”: (-42, 8, 2, -42),
+“o”: (7, 8, 9, 10),
+“c”: (“x”, “y”, “z”, “v”),
+“id”: (1, 2, 3, 4),
+“w”: (0.5, 2, 1, 1),</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>),
+id_column=”id”,
+weight_column=”w”,
+outcome_columns=”o”,</p>
+</dd>
+</dl>
+<p>)</p>
+<dl>
+<dt>s2 = Sample.from_frame(</dt><dd><dl>
+<dt>pd.DataFrame(</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“a”: (1, 2, 3),
+“b”: (4, 6, 8),
+“id”: (1, 2, 3),
+“w”: (0.5, 1, 2),
+“c”: (“x”, “y”, “z”),</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>),
+id_column=”id”,
+weight_column=”w”,</p>
+</dd>
+</dl>
+<p>)</p>
+<p>s3 = s1.set_target(s2)
+s3_null = s3.adjust(method=”null”)</p>
+<dl class="simple">
+<dt>print(s3_null.covars().ci_of_mean(round_ndigits = 3).T)</dt><dd><p># source               self           target         unadjusted
+# a          (1.232, 2.545)   (1.637, 3.221)     (1.232, 2.545)
+# b       (-32.715, 12.715)   (5.273, 8.441)  (-32.715, 12.715)
+# c[v]      (-0.183, 0.627)              NaN    (-0.183, 0.627)
+# c[x]      (-0.116, 0.338)  (-0.156, 0.442)    (-0.116, 0.338)
+# c[y]       (-0.12, 1.009)  (-0.233, 0.804)     (-0.12, 1.009)
+# c[z]      (-0.183, 0.627)   (-0.027, 1.17)    (-0.183, 0.627)</p>
+</dd>
+</dl>
+<p>s3_2 = s1.set_target(s2)
+s3_null_2 = s3_2.adjust(method=”null”)
+print(s3_null_2.outcomes().ci_of_mean(round_ndigits = 3))</p>
+<blockquote>
+<div><p>#                         o
+# source
+# self        (7.671, 9.44)
+# unadjusted  (7.671, 9.44)</p>
+</div></blockquote>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF.df">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">df</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataFrame</span></em><a class="headerlink" href="#balance.balancedf_class.BalanceDF.df" title="Permalink to this definition">¶</a></dt>
@@ -348,6 +444,76 @@ Columns are for each of the columns in the relevant df (after applying <a class=
 <span class="c1"># unadjusted  1.888889 -10.000000  0.222222  0.111111  0.444444  0.222222</span>
 </pre></div>
 </div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF.mean_with_ci">
+<span class="sig-name descname"><span class="pre">mean_with_ci</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">round_ndigits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDF.mean_with_ci"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDF.mean_with_ci" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a table with means and confidence intervals (CIs) for all elements in the BalanceDF object.</p>
+<p>This method calculates the mean and CI for each column of the BalanceDF object using the BalanceDF.mean()
+and BalanceDF.ci_of_mean() methods, respectively. The resulting table contains (for each element such as self, target and adjust) two columns for each input
+column: one for the mean and one for the CI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – The BalanceDF object.</p></li>
+<li><p><strong>round_ndigits</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of decimal places to round the mean and CI to.
+Defaults to 3.</p></li>
+<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – A boolean indicating whether to include linked samples
+when calculating the mean. Defaults to True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>A table with two rows for each input column: one for the mean and one for the CI.</dt><dd><p>The columns of the table are labeled with the names of the input columns.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<dl>
+<dt>::</dt><dd><p>import numpy as np
+import pandas as pd</p>
+<p>from balance.sample_class import Sample</p>
+<dl class="simple">
+<dt>s_o = Sample.from_frame(</dt><dd><p>pd.DataFrame({“o1”: (7, 8, 9, 10), “o2”: (7, 8, 9, np.nan), “id”: (1, 2, 3, 4)}),
+id_column=”id”,
+outcome_columns=(“o1”, “o2”),</p>
+</dd>
+</dl>
+<p>)</p>
+<dl>
+<dt>t_o = Sample.from_frame(</dt><dd><dl>
+<dt>pd.DataFrame(</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“o1”: (7, 8, 9, 10, 11, 12, 13, 14),
+“o2”: (7, 8, 9, np.nan, np.nan, 12, 13, 14),
+“id”: (1, 2, 3, 4, 5, 6, 7, 8),</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>),
+id_column=”id”,
+outcome_columns=(“o1”, “o2”),</p>
+</dd>
+</dl>
+<p>)
+s_o2 = s_o.set_target(t_o)</p>
+<dl class="simple">
+<dt>print(s_o2.outcomes().mean_with_ci())</dt><dd><p># source            self  target             self           target
+# _is_na_o2[False]  0.75   0.750   (0.326, 1.174)     (0.45, 1.05)
+# _is_na_o2[True]   0.25   0.250  (-0.174, 0.674)    (-0.05, 0.55)
+# o1                8.50  10.500   (7.404, 9.596)  (8.912, 12.088)
+# o2                6.00   7.875   (2.535, 9.465)  (4.351, 11.399)</p>
+</dd>
+</dl>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -458,7 +624,8 @@ preparing the data for BalanceOutcomesDF.plot and BalanceWeightsDF.plot.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – Object (used in the plots as “sample” or “self”)</p></li>
 <li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – Determines if the linked samples should be included in the plot.
-Defaluts to True.</p></li>
+Defaults to True.</p></li>
+<li><p><strong>**kwargs</strong> – passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">weighted_comparisons_plots.plot_dist()</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -502,6 +669,13 @@ If library=”seaborn” then returns None, unless return_axes is True. Then eit
 
 <span class="n">s3_null</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
 <span class="n">s3_null</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">library</span> <span class="o">=</span> <span class="s2">&quot;seaborn&quot;</span><span class="p">)</span>
+
+<span class="c1"># Controlling the limits of the y axis using lim:</span>
+<span class="n">s3_null</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ylim</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">s3_null</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">library</span> <span class="o">=</span> <span class="s2">&quot;seaborn&quot;</span><span class="p">,</span><span class="n">ylim</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span> <span class="n">dist_type</span> <span class="o">=</span> <span class="s2">&quot;hist&quot;</span><span class="p">)</span>
+
+<span class="c1"># Returning plotly qq plots:</span>
+<span class="n">s3_null</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dist_type</span> <span class="o">=</span> <span class="s2">&quot;qq&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -578,17 +752,24 @@ Columns are for each of the columns in the relevant df (after applying <a class=
 <dl class="py method">
 <dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF.summary">
 <span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDF.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDF.summary" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a summary of BalanceDF class.</p>
-<p>Currently just uses <a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean" title="balance.balancedf_class.BalanceDF.mean"><code class="xref py py-func docutils literal notranslate"><span class="pre">BalanceDF.mean()</span></code></a>. In the future this may be extended.</p>
+<dd><p>Returns a summary of the BalanceDF object.</p>
+<p>This method currently calculates the mean and confidence interval (CI) for each column of the object
+using the <a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean_with_ci" title="balance.balancedf_class.BalanceDF.mean_with_ci"><code class="xref py py-func docutils literal notranslate"><span class="pre">BalanceDF.mean_with_ci()</span></code></a> method. In the future, this method may be extended to include additional
+summary statistics.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – Object.</p></li>
-<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – Passed to <a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean" title="balance.balancedf_class.BalanceDF.mean"><code class="xref py py-func docutils literal notranslate"><span class="pre">BalanceDF.mean()</span></code></a>. Defaults to True.</p></li>
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – The BalanceDF object.</p></li>
+<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – A boolean indicating whether to include linked samples
+when calculating the mean and CI. Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean" title="balance.balancedf_class.BalanceDF.mean"><code class="xref py py-func docutils literal notranslate"><span class="pre">BalanceDF.mean()</span></code></a>.</p>
+<dd class="field-even"><p><dl class="simple">
+<dt>A table with two rows for each input column: one for the mean and one for the CI.</dt><dd><p>The columns of the table are labeled with the names of the input columns.</p>
+</dd>
+</dl>
+</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Union[pd.DataFrame, str]</p>
@@ -639,6 +820,92 @@ Columns are for each of the columns in the relevant df (after applying <a class=
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF.var_of_mean">
+<span class="sig-name descname"><span class="pre">var_of_mean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDF.var_of_mean"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDF.var_of_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates a variance of the weighted mean on the df of the BalanceDF object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – Object.</p></li>
+<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – Should the calculation be on self AND the linked samples objects? Defaults to True.
+If True, then uses <code class="xref py py-func docutils literal notranslate"><span class="pre">_call_on_linked()</span></code> with method “var_of_mean”.
+If False, then uses <code class="xref py py-func docutils literal notranslate"><span class="pre">_descriptive_stats()</span></code> with method “var_of_mean”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>With row per object: self if on_linked_samples=False, and self and others (e.g.: target and unadjusted) if True.
+Columns are for each of the columns in the relevant df (after applying <a class="reference internal" href="#balance.balancedf_class.BalanceDF.model_matrix" title="balance.balancedf_class.BalanceDF.model_matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">model_matrix()</span></code></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<dl>
+<dt>::</dt><dd><p>import pandas as pd
+from balance.sample_class import Sample
+from balance.stats_and_plots.weighted_stats import var_of_weighted_mean</p>
+<dl class="simple">
+<dt>var_of_weighted_mean(pd.Series((1, 2, 3, 1)), pd.Series((0.5, 2, 1, 1)))</dt><dd><p># 0    0.112178
+# dtype: float64</p>
+</dd>
+</dl>
+<p># This shows we got the first cell of ‘a’ as expected.</p>
+<dl>
+<dt>s1 = Sample.from_frame(</dt><dd><dl>
+<dt>pd.DataFrame(</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“a”: (1, 2, 3, 1),
+“b”: (-42, 8, 2, -42),
+“o”: (7, 8, 9, 10),
+“c”: (“x”, “y”, “z”, “v”),
+“id”: (1, 2, 3, 4),
+“w”: (0.5, 2, 1, 1),</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>),
+id_column=”id”,
+weight_column=”w”,
+outcome_columns=”o”,</p>
+</dd>
+</dl>
+<p>)</p>
+<dl>
+<dt>s2 = Sample.from_frame(</dt><dd><dl>
+<dt>pd.DataFrame(</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“a”: (1, 2, 3),
+“b”: (4, 6, 8),
+“id”: (1, 2, 3),
+“w”: (0.5, 1, 2),
+“c”: (“x”, “y”, “z”),</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>),
+id_column=”id”,
+weight_column=”w”,</p>
+</dd>
+</dl>
+<p>)</p>
+<p>s3 = s1.set_target(s2)
+s3_null = s3.adjust(method=”null”)</p>
+<dl class="simple">
+<dt>print(s3_null.covars().var_of_mean())</dt><dd><p>#                    a           b      c[v]      c[x]      c[y]      c[z]
+# source
+# self        0.112178  134.320988  0.042676  0.013413  0.082914  0.042676
+# target      0.163265    0.653061       NaN  0.023324  0.069971  0.093294
+# unadjusted  0.112178  134.320988  0.042676  0.013413  0.082914  0.042676</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -648,14 +915,14 @@ Columns are for each of the columns in the relevant df (after applying <a class=
 <dt class="sig sig-object py" id="balance.balancedf_class.BalanceOutcomesDF.plot">
 <span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Figure</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceOutcomesDF.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceOutcomesDF.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plots histogram of covariates in a BalanceOutcomesDF object using seaborn (as default).</p>
-<p>It’s possible to use other plots using dist_type with arguments such as “hist” (default), “kde”, “qq”, and “ecdf”.
+<p>It’s possible to use other plots using dist_type with arguments such as “hist”, “kde” (default), “qq”, and “ecdf”.
 Look at <code class="xref py py-func docutils literal notranslate"><span class="pre">plot_dist()</span></code> for more details.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF" title="balance.balancedf_class.BalanceOutcomesDF"><em>BalanceOutcomesDF</em></a>) – a BalanceOutcomesDF object, with a set of variables.</p></li>
 <li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – Determines if the linked samples should be included in the plot.
-Defaluts to True.</p></li>
+Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -770,7 +1037,7 @@ A second row with the proportion of non-null observations.</p>
 <span class="n">s_o</span><span class="o">.</span><span class="n">outcomes</span><span class="p">()</span><span class="o">.</span><span class="n">relative_response_rates</span><span class="p">(</span><span class="n">target</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
 <span class="c1"># None</span>
 
-<span class="c1"># compared with a larget target</span>
+<span class="c1"># compared with a larger target</span>
 
 <span class="n">t_o</span> <span class="o">=</span> <span class="n">Sample</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span>
     <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
@@ -817,7 +1084,7 @@ A second row with the proportion of non-null observations.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>A printable string, with mean of outcome variables and reponse rates.</p>
+<dd class="field-even"><p>A printable string, with mean of outcome variables and response rates.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>str</p>
@@ -849,40 +1116,40 @@ A second row with the proportion of non-null observations.</p>
 <span class="n">s_o2</span> <span class="o">=</span> <span class="n">s_o</span><span class="o">.</span><span class="n">set_target</span><span class="p">(</span><span class="n">t_o</span><span class="p">)</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">s_o</span><span class="o">.</span><span class="n">outcomes</span><span class="p">()</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+    <span class="c1"># 2 outcomes: [&#39;o1&#39; &#39;o2&#39;]</span>
+    <span class="c1"># Mean outcomes (with 95% confidence intervals):</span>
+    <span class="c1"># source            self             self</span>
+    <span class="c1"># _is_na_o2[False]  0.75   (0.326, 1.174)</span>
+    <span class="c1"># _is_na_o2[True]   0.25  (-0.174, 0.674)</span>
+    <span class="c1"># o1                8.50   (7.404, 9.596)</span>
+    <span class="c1"># o2                6.00   (2.535, 9.465)</span>
 
-<span class="c1"># 2 outcomes: [&#39;o1&#39; &#39;o2&#39;]</span>
-<span class="c1"># Mean outcomes:</span>
-<span class="c1">#         _is_na_o2[False]  _is_na_o2[True]   o1   o2</span>
-<span class="c1"># source</span>
-<span class="c1"># self                0.75             0.25  8.5  6.0</span>
-
-<span class="c1"># Response rates (relative to number of respondents in sample):</span>
-<span class="c1">#       o1    o2</span>
-<span class="c1"># n    4.0   3.0</span>
-<span class="c1"># %  100.0  75.0</span>
-
+    <span class="c1"># Response rates (relative to number of respondents in sample):</span>
+    <span class="c1">#       o1    o2</span>
+    <span class="c1"># n    4.0   3.0</span>
+    <span class="c1"># %  100.0  75.0</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">s_o2</span><span class="o">.</span><span class="n">outcomes</span><span class="p">()</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+    <span class="c1"># 2 outcomes: [&#39;o1&#39; &#39;o2&#39;]</span>
+    <span class="c1"># Mean outcomes (with 95% confidence intervals):</span>
+    <span class="c1"># source            self  target             self           target</span>
+    <span class="c1"># _is_na_o2[False]  0.75   0.750   (0.326, 1.174)     (0.45, 1.05)</span>
+    <span class="c1"># _is_na_o2[True]   0.25   0.250  (-0.174, 0.674)    (-0.05, 0.55)</span>
+    <span class="c1"># o1                8.50  10.500   (7.404, 9.596)  (8.912, 12.088)</span>
+    <span class="c1"># o2                6.00   7.875   (2.535, 9.465)  (4.351, 11.399)</span>
 
-<span class="c1"># 2 outcomes: [&#39;o1&#39; &#39;o2&#39;]</span>
-<span class="c1"># Mean outcomes:</span>
-<span class="c1">#         _is_na_o2[False]  _is_na_o2[True]    o1     o2</span>
-<span class="c1"># source</span>
-<span class="c1"># self                0.75             0.25   8.5  6.000</span>
-<span class="c1"># target              0.75             0.25  10.5  7.875</span>
-
-<span class="c1"># Response rates (relative to number of respondents in sample):</span>
-<span class="c1">#       o1    o2</span>
-<span class="c1"># n    4.0   3.0</span>
-<span class="c1"># %  100.0  75.0</span>
-<span class="c1"># Response rates (relative to notnull rows in the target):</span>
-<span class="c1">#            o1    o2</span>
-<span class="c1"># n   4.000000   3.0</span>
-<span class="c1"># %  66.666667  50.0</span>
-<span class="c1"># Response rates (in the target):</span>
-<span class="c1">#        o1    o2</span>
-<span class="c1"># n    8.0   6.0</span>
-<span class="c1"># %  100.0  75.0</span>
+    <span class="c1"># Response rates (relative to number of respondents in sample):</span>
+    <span class="c1">#       o1    o2</span>
+    <span class="c1"># n    4.0   3.0</span>
+    <span class="c1"># %  100.0  75.0</span>
+    <span class="c1"># Response rates (relative to notnull rows in the target):</span>
+    <span class="c1">#            o1    o2</span>
+    <span class="c1"># n   4.000000   3.0</span>
+    <span class="c1"># %  66.666667  50.0</span>
+    <span class="c1"># Response rates (in the target):</span>
+    <span class="c1">#        o1    o2</span>
+    <span class="c1"># n    8.0   6.0</span>
+    <span class="c1"># %  100.0  75.0</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -890,7 +1157,7 @@ A second row with the proportion of non-null observations.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="balance.balancedf_class.BalanceOutcomesDF.target_response_rates">
 <span class="sig-name descname"><span class="pre">target_response_rates</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceOutcomesDF.target_response_rates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceOutcomesDF.target_response_rates" title="Permalink to this definition">¶</a></dt>
-<dd><p>Caclulates relative_response_rates for the target in a Sample object.</p>
+<dd><p>Calculates relative_response_rates for the target in a Sample object.</p>
 <p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">general_stats.relative_response_rates()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -969,14 +1236,14 @@ A second row with the proportion of non-null observations.</p>
 <dt class="sig sig-object py" id="balance.balancedf_class.BalanceWeightsDF.plot">
 <span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Figure</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceWeightsDF.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceWeightsDF.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plots kde (kernal density estimation) of the weights in a BalanceWeightsDF object using seaborn (as default).</p>
-<p>It’s possible to use other plots using dist_type with arguments such as “hist” (default), “kde”, “qq”, and “ecdf”.
+<p>It’s possible to use other plots using dist_type with arguments such as “hist”, “kde” (default), “qq”, and “ecdf”.
 Look at <code class="xref py py-func docutils literal notranslate"><span class="pre">plot_dist()</span></code> for more details.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF" title="balance.balancedf_class.BalanceWeightsDF"><em>BalanceWeightsDF</em></a>) – a BalanceOutcomesDF object, with a set of variables.</p></li>
 <li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – Determines if the linked samples should be included in the plot.
-Defaluts to True.</p></li>
+Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1068,8 +1335,10 @@ If library=”seaborn” then returns None, unless return_axes is True. Then eit
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF"><code class="docutils literal notranslate"><span class="pre">BalanceDF</span></code></a><ul>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.asmd"><code class="docutils literal notranslate"><span class="pre">BalanceDF.asmd()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.asmd_improvement"><code class="docutils literal notranslate"><span class="pre">BalanceDF.asmd_improvement()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.ci_of_mean"><code class="docutils literal notranslate"><span class="pre">BalanceDF.ci_of_mean()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.df"><code class="docutils literal notranslate"><span class="pre">BalanceDF.df</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean"><code class="docutils literal notranslate"><span class="pre">BalanceDF.mean()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean_with_ci"><code class="docutils literal notranslate"><span class="pre">BalanceDF.mean_with_ci()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.model_matrix"><code class="docutils literal notranslate"><span class="pre">BalanceDF.model_matrix()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.names"><code class="docutils literal notranslate"><span class="pre">BalanceDF.names()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.plot"><code class="docutils literal notranslate"><span class="pre">BalanceDF.plot()</span></code></a></li>
@@ -1077,6 +1346,7 @@ If library=”seaborn” then returns None, unless return_axes is True. Then eit
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.summary"><code class="docutils literal notranslate"><span class="pre">BalanceDF.summary()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.to_csv"><code class="docutils literal notranslate"><span class="pre">BalanceDF.to_csv()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.to_download"><code class="docutils literal notranslate"><span class="pre">BalanceDF.to_download()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.var_of_mean"><code class="docutils literal notranslate"><span class="pre">BalanceDF.var_of_mean()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF"><code class="docutils literal notranslate"><span class="pre">BalanceOutcomesDF</span></code></a><ul>
