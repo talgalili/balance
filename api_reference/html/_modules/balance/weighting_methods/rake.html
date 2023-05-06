@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>balance.weighting_methods.rake &#8212; balance  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">balance  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../../balance.html" accesskey="U">balance</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">balance.weighting_methods.rake</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for balance.weighting_methods.rake</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) Meta Platforms, Inc. and affiliates.</span>
+<span class="c1">#</span>
+<span class="c1"># This software may be used and distributed according to the terms of the</span>
+<span class="c1"># GNU General Public License version 2.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">fractions</span> <span class="kn">import</span> <span class="n">Fraction</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">balance</span> <span class="kn">import</span> <span class="n">adjustment</span> <span class="k">as</span> <span class="n">balance_adjustment</span><span class="p">,</span> <span class="n">util</span> <span class="k">as</span> <span class="n">balance_util</span>
+<span class="kn">from</span> <span class="nn">ipfn</span> <span class="kn">import</span> <span class="n">ipfn</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__package__</span><span class="p">)</span>
+
+
+<span class="c1"># TODO: Add options for only marginal distributions input</span>
+<div class="viewcode-block" id="rake"><a class="viewcode-back" href="../../../balance.weighting_methods.rake.html#balance.weighting_methods.rake.rake">[docs]</a><span class="k">def</span> <span class="nf">rake</span><span class="p">(</span>
+    <span class="n">sample_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">sample_weights</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">target_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">target_weights</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">variables</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">transformations</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+    <span class="n">na_action</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;add_indicator&quot;</span><span class="p">,</span>
+    <span class="n">max_iteration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="n">convergence_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0005</span><span class="p">,</span>
+    <span class="n">rate_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+    <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Perform raking (using the iterative proportional fitting algorithm).</span>
+<span class="sd">    See: https://en.wikipedia.org/wiki/Iterative_proportional_fitting</span>
+
+<span class="sd">    Returns weights normalised to sum of target weights</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">    sample_df --- (pandas dataframe) a dataframe representing the sample.</span>
+<span class="sd">    sample_weights --- (pandas series) design weights for sample.</span>
+<span class="sd">    target_df ---  (pandas dataframe) a dataframe representing the target.</span>
+<span class="sd">    target_weights --- (pandas series) design weights for target.</span>
+<span class="sd">    variables ---  (list of strings) list of variables to include in the model.</span>
+<span class="sd">                   If None all joint variables of sample_df and target_df are used.</span>
+<span class="sd">    transformations --- (dict) what transformations to apply to data before fitting the model.</span>
+<span class="sd">                               Default is &quot;default&quot; (see apply_transformations function).</span>
+<span class="sd">    na_action --- (string) what to do with NAs. Default is &quot;add_indicator&quot;, which adds NaN as a</span>
+<span class="sd">                  group (called &quot;__NaN__&quot;) for each weighting variable (post-transformation);</span>
+<span class="sd">                  &quot;drop&quot; removes rows with any missing values on any variable from both sample</span>
+<span class="sd">                  and target.</span>
+<span class="sd">    max_iteration --- (int) maximum number of iterations for iterative proportional fitting algorithm</span>
+<span class="sd">    convergence_rate --- (float) convergence criteria; the maximum difference in proportions between</span>
+<span class="sd">                          sample and target marginal distribution on any covariate in order</span>
+<span class="sd">                          for algorithm to converge.</span>
+<span class="sd">    rate_tolerance --- (float) convergence criteria; if convergence rate does not move more</span>
+<span class="sd">                               than this amount than the algorithm is also considered to</span>
+<span class="sd">                               have converged.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">    A dictionary including:</span>
+<span class="sd">    &quot;weight&quot; --- The weights for the sample.</span>
+<span class="sd">    &quot;model&quot; --- parameters of the model: iterations (dataframe with iteration numbers and</span>
+<span class="sd">                convergence rate information at all steps), converged (Flag with the output</span>
+<span class="sd">                status: 0 for failure and 1 for success).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="p">(</span>
+        <span class="s2">&quot;weight&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span>
+    <span class="p">),</span> <span class="s2">&quot;weight shouldn&#39;t be a name for covariate in the sample data&quot;</span>
+    <span class="k">assert</span> <span class="p">(</span>
+        <span class="s2">&quot;weight&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">target_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span>
+    <span class="p">),</span> <span class="s2">&quot;weight shouldn&#39;t be a name for covariate in the target data&quot;</span>
+
+    <span class="c1"># TODO: move the input checks into separate funnction for rake, ipw, poststratify</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">),</span> <span class="s2">&quot;sample_df must be a pandas DataFrame&quot;</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_df</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">),</span> <span class="s2">&quot;target_df must be a pandas DataFrame&quot;</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span>
+        <span class="n">sample_weights</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span>
+    <span class="p">),</span> <span class="s2">&quot;sample_weights must be a pandas Series&quot;</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span>
+        <span class="n">target_weights</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span>
+    <span class="p">),</span> <span class="s2">&quot;target_weights must be a pandas Series&quot;</span>
+    <span class="k">assert</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">sample_weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span>
+        <span class="s2">&quot;sample_weights must be the same length as sample_df&quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sample_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">sample_weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="n">target_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">target_weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span>
+        <span class="s2">&quot;target_weights must be the same length as target_df&quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">target_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">target_weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+
+    <span class="n">variables</span> <span class="o">=</span> <span class="n">balance_util</span><span class="o">.</span><span class="n">choose_variables</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="n">variables</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Join variables for sample and target: </span><span class="si">{</span><span class="n">variables</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">sample_df</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">variables</span><span class="p">]</span>
+    <span class="n">target_df</span> <span class="o">=</span> <span class="n">target_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">variables</span><span class="p">]</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">,</span> <span class="p">(</span>
+        <span class="s2">&quot;Must weight on at least two variables for raking. &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;Currently have variables=</span><span class="si">{</span><span class="n">variables</span><span class="si">}</span><span class="s2"> only&quot;</span>
+    <span class="p">)</span>
+
+    <span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span> <span class="o">=</span> <span class="n">balance_adjustment</span><span class="o">.</span><span class="n">apply_transformations</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span><span class="p">),</span> <span class="n">transformations</span>
+    <span class="p">)</span>
+
+    <span class="c1"># TODO: separate into a function that handles NA (for rake, ipw, poststratify)</span>
+    <span class="k">if</span> <span class="n">na_action</span> <span class="o">==</span> <span class="s2">&quot;drop&quot;</span><span class="p">:</span>
+        <span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">sample_weights</span><span class="p">)</span> <span class="o">=</span> <span class="n">balance_util</span><span class="o">.</span><span class="n">drop_na_rows</span><span class="p">(</span>
+            <span class="n">sample_df</span><span class="p">,</span> <span class="n">sample_weights</span><span class="p">,</span> <span class="s2">&quot;sample&quot;</span>
+        <span class="p">)</span>
+        <span class="p">(</span><span class="n">target_df</span><span class="p">,</span> <span class="n">target_weights</span><span class="p">)</span> <span class="o">=</span> <span class="n">balance_util</span><span class="o">.</span><span class="n">drop_na_rows</span><span class="p">(</span>
+            <span class="n">target_df</span><span class="p">,</span> <span class="n">target_weights</span><span class="p">,</span> <span class="s2">&quot;target&quot;</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">na_action</span> <span class="o">==</span> <span class="s2">&quot;add_indicator&quot;</span><span class="p">:</span>
+        <span class="n">target_df</span> <span class="o">=</span> <span class="n">target_df</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="s2">&quot;__NaN__&quot;</span><span class="p">)</span>
+        <span class="n">sample_df</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="s2">&quot;__NaN__&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`na_action` must be &#39;add_indicator&#39; or &#39;drop&#39;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Cast all data types as string to be explicit about each unique value</span>
+    <span class="c1"># being its own group and to handle that `fillna()` above creates</span>
+    <span class="c1"># series of type Object, which won&#39;t work for the ipfn script</span>
+    <span class="n">levels_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+        <span class="n">target_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">target_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+        <span class="n">sample_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+
+        <span class="n">sample_var_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">sample_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+        <span class="n">target_var_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">target_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+        <span class="n">sample_over_set</span> <span class="o">=</span> <span class="n">sample_var_set</span> <span class="o">-</span> <span class="n">target_var_set</span>
+        <span class="n">target_over_set</span> <span class="o">=</span> <span class="n">target_var_set</span> <span class="o">-</span> <span class="n">sample_var_set</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_over_set</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;All variable levels in sample must be present in target. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">&#39; in target is missing these levels: </span><span class="si">{</span><span class="n">sample_over_set</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_over_set</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">&#39; has more levels in target than in sample. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">&#39; in sample is missing these levels: </span><span class="si">{</span><span class="n">target_over_set</span><span class="si">}</span><span class="s2">. &quot;</span>
+                <span class="s2">&quot;These levels are treated as if they do not exist for that variable.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">levels_dict</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sample_var_set</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">target_var_set</span><span class="p">))</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Final covariates and levels that will be used in raking: </span><span class="si">{</span><span class="n">levels_dict</span><span class="si">}</span><span class="s2">.&quot;</span>
+    <span class="p">)</span>
+
+    <span class="n">target_df</span> <span class="o">=</span> <span class="n">target_df</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">weight</span><span class="o">=</span><span class="n">target_weights</span><span class="p">)</span>
+    <span class="n">sample_df</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">weight</span><span class="o">=</span><span class="n">sample_weights</span><span class="p">)</span>
+
+    <span class="n">sample_sum_weights</span> <span class="o">=</span> <span class="n">sample_df</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">target_sum_weights</span> <span class="o">=</span> <span class="n">target_df</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+    <span class="c1"># Alphabetize variables to ensure consistency across covariate order</span>
+    <span class="c1"># (ipfn algorithm is iterative and variable order can matter on the margins)</span>
+    <span class="n">alphabetized_variables</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+    <span class="n">alphabetized_variables</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Alphabetized variable order is as follows: </span><span class="si">{</span><span class="n">alphabetized_variables</span><span class="si">}</span><span class="s2">.&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># margins from population</span>
+    <span class="n">target_margins</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">target_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">variable</span><span class="p">)[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="o">/</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">target_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">variable</span><span class="p">)[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+                <span class="o">*</span> <span class="n">sample_sum_weights</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">alphabetized_variables</span>
+    <span class="p">]</span>
+
+    <span class="c1"># sample cells (joint distribution of covariates)</span>
+    <span class="n">sample_cells</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sample_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">alphabetized_variables</span><span class="p">)[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    <span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+        <span class="s2">&quot;Raking algorithm running following settings: &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot; convergence_rate: </span><span class="si">{</span><span class="n">convergence_rate</span><span class="si">}</span><span class="s2">; max_iteration: </span><span class="si">{</span><span class="n">max_iteration</span><span class="si">}</span><span class="s2">; rate_tolerance: </span><span class="si">{</span><span class="n">rate_tolerance</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="c1"># returns dataframe with joint distribution of covariates and total weight</span>
+    <span class="c1"># for that specific set of covariates</span>
+    <span class="n">ipfn_obj</span> <span class="o">=</span> <span class="n">ipfn</span><span class="o">.</span><span class="n">ipfn</span><span class="p">(</span>
+        <span class="n">original</span><span class="o">=</span><span class="n">sample_cells</span><span class="p">,</span>
+        <span class="n">aggregates</span><span class="o">=</span><span class="n">target_margins</span><span class="p">,</span>
+        <span class="n">dimensions</span><span class="o">=</span><span class="p">[[</span><span class="n">var</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">alphabetized_variables</span><span class="p">],</span>
+        <span class="n">weight_col</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span><span class="p">,</span>
+        <span class="n">convergence_rate</span><span class="o">=</span><span class="n">convergence_rate</span><span class="p">,</span>
+        <span class="n">max_iteration</span><span class="o">=</span><span class="n">max_iteration</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">rate_tolerance</span><span class="o">=</span><span class="n">rate_tolerance</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">fit</span><span class="p">,</span> <span class="n">converged</span><span class="p">,</span> <span class="n">iterations</span> <span class="o">=</span> <span class="n">ipfn_obj</span><span class="o">.</span><span class="n">iteration</span><span class="p">()</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Raking algorithm terminated with following convergence: </span><span class="si">{</span><span class="n">converged</span><span class="si">}</span><span class="s2">; &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;and iteration meta data: </span><span class="si">{</span><span class="n">iterations</span><span class="si">}</span><span class="s2">.&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">converged</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Maximum iterations reached, convergence was not achieved&quot;</span><span class="p">)</span>
+
+    <span class="n">raked</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span>
+        <span class="n">sample_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(),</span>
+        <span class="n">fit</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="s2">&quot;rake_weight&quot;</span><span class="p">}),</span>
+        <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span>
+        <span class="n">on</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">variables</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Merge back to original sample weights</span>
+    <span class="n">raked_rescaled</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span>
+        <span class="n">raked</span><span class="p">,</span>
+        <span class="p">(</span>
+            <span class="n">sample_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">variables</span><span class="p">))[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="s2">&quot;total_survey_weight&quot;</span><span class="p">})</span>
+        <span class="p">),</span>
+        <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span>
+        <span class="n">on</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">variables</span><span class="p">),</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span>
+        <span class="s2">&quot;index&quot;</span>
+    <span class="p">)</span>  <span class="c1"># important if dropping rows due to NA</span>
+
+    <span class="c1"># use above merge to give each individual sample its proportion of the</span>
+    <span class="c1"># cell&#39;s total weight</span>
+    <span class="n">raked_rescaled</span><span class="p">[</span><span class="s2">&quot;rake_weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">raked_rescaled</span><span class="p">[</span><span class="s2">&quot;rake_weight&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">raked_rescaled</span><span class="p">[</span><span class="s2">&quot;total_survey_weight&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="c1"># rescale weights to sum to target_sum_weights (sum of initial target weights)</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">raked_rescaled</span><span class="p">[</span><span class="s2">&quot;rake_weight&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">raked_rescaled</span><span class="p">[</span><span class="s2">&quot;rake_weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="p">)</span> <span class="o">*</span> <span class="n">target_sum_weights</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="n">w</span><span class="p">,</span>
+        <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;rake&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;iterations&quot;</span><span class="p">:</span> <span class="n">iterations</span><span class="p">,</span>
+            <span class="s2">&quot;converged&quot;</span><span class="p">:</span> <span class="n">converged</span><span class="p">,</span>
+            <span class="s2">&quot;perf&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;prop_dev_explained&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">])},</span>
+            <span class="c1"># TODO: fix functions that use the perf and remove it from here</span>
+        <span class="p">},</span>
+    <span class="p">}</span></div>
+
+
+<span class="k">def</span> <span class="nf">_lcm</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculates the least common multiple (LCM) of two integers.</span>
+
+<span class="sd">    The least common multiple (LCM) of two or more numbers is the smallest positive integer that is divisible by each of the given numbers.</span>
+<span class="sd">    In other words, it is the smallest multiple that the numbers have in common.</span>
+<span class="sd">    The LCM is useful when you need to find a common denominator for fractions or synchronize repeating events with different intervals.</span>
+
+<span class="sd">    For example, let&#39;s find the LCM of 4 and 6:</span>
+
+<span class="sd">    The multiples of 4 are: 4, 8, 12, 16, 20, ...</span>
+<span class="sd">    The multiples of 6 are: 6, 12, 18, 24, 30, ...</span>
+<span class="sd">    The smallest multiple that both numbers have in common is 12, so the LCM of 4 and 6 is 12.</span>
+
+<span class="sd">    The calculation is based on the property that the product of two numbers is equal to the product of their LCM and GCD: a * b = LCM(a, b) * GCD(a, b).</span>
+<span class="sd">    (proof: https://math.stackexchange.com/a/589299/1406)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        a: The first integer.</span>
+<span class="sd">        b: The second integer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The least common multiple of the two integers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># NOTE: this function uses math.gcd which calculates the greatest common divisor (GCD) of two integers.</span>
+    <span class="c1"># The greatest common divisor (GCD) of two or more integers is the largest positive integer that divides each of the given integers without leaving a remainder.</span>
+    <span class="c1"># In other words, it is the largest common factor of the given integers.</span>
+    <span class="c1"># For example, the GCD of 12 and 18 is 6, since 6 is the largest integer that divides both 12 and 18 without leaving a remainder.</span>
+    <span class="c1"># Similarly, the GCD of 24, 36, and 48 is 12, since 12 is the largest integer that divides all three of these numbers without leaving a remainder.</span>
+    <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">//</span> <span class="n">math</span><span class="o">.</span><span class="n">gcd</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_proportional_array_from_dict</span><span class="p">(</span>
+    <span class="n">input_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">max_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a proportional array based on the input dictionary.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        input_dict (Dict[str, float]): A dictionary where keys are strings and values are their proportions (float).</span>
+<span class="sd">        max_length (int): check if the length of the output exceeds the max_length. If it does, it will be scaled down to that length. Default is 10k.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A list of strings where each key is repeated according to its proportion.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        ::</span>
+<span class="sd">            _proportional_array_from_dict({&quot;a&quot;:0.2, &quot;b&quot;:0.8})</span>
+<span class="sd">                # [&#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;]</span>
+<span class="sd">            _proportional_array_from_dict({&quot;a&quot;:0.5, &quot;b&quot;:0.5})</span>
+<span class="sd">                # [&#39;a&#39;, &#39;b&#39;]</span>
+<span class="sd">            _proportional_array_from_dict({&quot;a&quot;:1/3, &quot;b&quot;:1/3, &quot;c&quot;: 1/3})</span>
+<span class="sd">                # [&#39;a&#39;, &#39;b&#39;, &#39;c&#39;]</span>
+<span class="sd">            _proportional_array_from_dict({&quot;a&quot;: 3/8, &quot;b&quot;: 5/8})</span>
+<span class="sd">                # [&#39;a&#39;, &#39;a&#39;, &#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;]</span>
+<span class="sd">            _proportional_array_from_dict({&quot;a&quot;:3/5, &quot;b&quot;:1/5, &quot;c&quot;: 2/10})</span>
+<span class="sd">                # [&#39;a&#39;, &#39;a&#39;, &#39;a&#39;, &#39;b&#39;, &#39;c&#39;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Filter out items with zero value</span>
+    <span class="n">filtered_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">input_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">}</span>
+
+    <span class="c1"># Normalize the values if they don&#39;t sum to 1</span>
+    <span class="n">sum_values</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">filtered_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">sum_values</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">filtered_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="o">/</span> <span class="n">sum_values</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">filtered_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># Convert the proportions to fractions</span>
+    <span class="n">fraction_dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">k</span><span class="p">:</span> <span class="n">Fraction</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">limit_denominator</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">filtered_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span>
+
+    <span class="c1"># Find the least common denominator (LCD) of the fractions</span>
+    <span class="n">lcd</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">fraction</span> <span class="ow">in</span> <span class="n">fraction_dict</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">lcd</span> <span class="o">*=</span> <span class="n">fraction</span><span class="o">.</span><span class="n">denominator</span> <span class="o">//</span> <span class="n">math</span><span class="o">.</span><span class="n">gcd</span><span class="p">(</span><span class="n">lcd</span><span class="p">,</span> <span class="n">fraction</span><span class="o">.</span><span class="n">denominator</span><span class="p">)</span>
+
+    <span class="c1"># Calculate the scaling factor based on max_length</span>
+    <span class="n">scaling_factor</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_length</span> <span class="o">/</span> <span class="n">lcd</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">fraction</span> <span class="ow">in</span> <span class="n">fraction_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Calculate the count for each key based on its proportion and scaling_factor</span>
+        <span class="n">k_count</span> <span class="o">=</span> <span class="nb">round</span><span class="p">((</span><span class="n">fraction</span> <span class="o">*</span> <span class="n">lcd</span><span class="p">)</span><span class="o">.</span><span class="n">numerator</span> <span class="o">*</span> <span class="n">scaling_factor</span><span class="p">)</span>
+        <span class="c1"># Extend the result array with the key repeated according to its count</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">key</span><span class="p">]</span> <span class="o">*</span> <span class="n">k_count</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">def</span> <span class="nf">_find_lcm_of_array_lengths</span><span class="p">(</span><span class="n">arrays</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Finds the least common multiple (LCM) of the lengths of arrays in the input dictionary.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        arrays: A dictionary where keys are strings and values are lists of strings.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The LCM of the lengths of the arrays in the input dictionary.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        ::</span>
+<span class="sd">            arrays = {</span>
+<span class="sd">                        &quot;v1&quot;: [&quot;a&quot;, &quot;b&quot;, &quot;b&quot;, &quot;c&quot;],</span>
+<span class="sd">                        &quot;v2&quot;: [&quot;aa&quot;, &quot;bb&quot;]</span>
+<span class="sd">                    }</span>
+<span class="sd">            _find_lcm_of_array_lengths(arrays)</span>
+<span class="sd">                # 4</span>
+
+<span class="sd">            arrays = {</span>
+<span class="sd">                        &quot;v1&quot;: [&quot;a&quot;, &quot;b&quot;, &quot;b&quot;, &quot;c&quot;],</span>
+<span class="sd">                        &quot;v2&quot;: [&quot;aa&quot;, &quot;bb&quot;],</span>
+<span class="sd">                        &quot;v3&quot;: [&quot;a1&quot;, &quot;a2&quot;, &quot;a3&quot;]</span>
+<span class="sd">                    }</span>
+<span class="sd">            _find_lcm_of_array_lengths(arrays)</span>
+<span class="sd">                # 12</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">arrays</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+    <span class="n">lcm_length</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">_lcm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">array_lengths</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">lcm_length</span>
+
+
+<span class="k">def</span> <span class="nf">_realize_dicts_of_proportions</span><span class="p">(</span>
+    <span class="n">dict_of_dicts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates proportional arrays of equal length for each input dictionary.</span>
+
+<span class="sd">    This can be used to get an input dict of proportions of values, and produce a dict with arrays that realizes these proportions.</span>
+<span class="sd">    It can be used as input to the Sample object so it could be used for running raking.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        dict_of_dicts: A dictionary of dictionaries, where each key is a string and</span>
+<span class="sd">                   each value is a dictionary with keys as strings and values as their proportions (float).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A dictionary with the same keys as the input and equal length arrays as values.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        ::</span>
+<span class="sd">            dict_of_dicts = {</span>
+<span class="sd">                &quot;v1&quot;: {&quot;a&quot;: 0.2, &quot;b&quot;: 0.6, &quot;c&quot;: 0.2},</span>
+<span class="sd">                &quot;v2&quot;: {&quot;aa&quot;: 0.5, &quot;bb&quot;: 0.5}</span>
+<span class="sd">            }</span>
+
+<span class="sd">            realize_dicts_of_proportions(dict_of_dicts)</span>
+<span class="sd">            # {&#39;v1&#39;: [&#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;c&#39;, &#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;c&#39;], &#39;v2&#39;: [&#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;]}</span>
+
+
+<span class="sd">            dict_of_dicts = {</span>
+<span class="sd">                &quot;v1&quot;: {&quot;a&quot;: 0.2, &quot;b&quot;: 0.6, &quot;c&quot;: 0.2},</span>
+<span class="sd">                &quot;v2&quot;: {&quot;aa&quot;: 0.5, &quot;bb&quot;: 0.5},</span>
+<span class="sd">                &quot;v3&quot;: {&quot;A&quot;: 0.2, &quot;B&quot;: 0.8},</span>
+<span class="sd">            }</span>
+<span class="sd">            realize_dicts_of_proportions(dict_of_dicts)</span>
+<span class="sd">                # {&#39;v1&#39;: [&#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;c&#39;, &#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;c&#39;],</span>
+<span class="sd">                #  &#39;v2&#39;: [&#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;],</span>
+<span class="sd">                #  &#39;v3&#39;: [&#39;A&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;A&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;]}</span>
+<span class="sd">            # The above example could have been made shorter. But that&#39;s a limitation of the function.</span>
+
+<span class="sd">            dict_of_dicts = {</span>
+<span class="sd">                &quot;v1&quot;: {&quot;a&quot;: 0.2, &quot;b&quot;: 0.6, &quot;c&quot;: 0.2},</span>
+<span class="sd">                &quot;v2&quot;: {&quot;aa&quot;: 0.5, &quot;bb&quot;: 0.5},</span>
+<span class="sd">                &quot;v3&quot;: {&quot;A&quot;: 0.2, &quot;B&quot;: 0.8},</span>
+<span class="sd">                &quot;v4&quot;: {&quot;A&quot;: 0.1, &quot;B&quot;: 0.9},</span>
+<span class="sd">            }</span>
+<span class="sd">            realize_dicts_of_proportions(dict_of_dicts)</span>
+<span class="sd">                # {&#39;v1&#39;: [&#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;c&#39;, &#39;a&#39;, &#39;b&#39;, &#39;b&#39;, &#39;b&#39;, &#39;c&#39;],</span>
+<span class="sd">                #  &#39;v2&#39;: [&#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;, &#39;aa&#39;, &#39;bb&#39;],</span>
+<span class="sd">                #  &#39;v3&#39;: [&#39;A&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;A&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;],</span>
+<span class="sd">                #  &#39;v4&#39;: [&#39;A&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;, &#39;B&#39;]}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Generate proportional arrays for each dictionary</span>
+    <span class="n">arrays</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">_proportional_array_from_dict</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dict_of_dicts</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># Find the LCM over the lengths of all the arrays</span>
+    <span class="n">lcm_length</span> <span class="o">=</span> <span class="n">_find_lcm_of_array_lengths</span><span class="p">(</span><span class="n">arrays</span><span class="p">)</span>
+
+    <span class="c1"># Extend each array to have the same LCM length while maintaining proportions</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">arrays</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">factor</span> <span class="o">=</span> <span class="n">lcm_length</span> <span class="o">//</span> <span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+        <span class="n">extended_arr</span> <span class="o">=</span> <span class="n">arr</span> <span class="o">*</span> <span class="n">factor</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">extended_arr</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<div class="viewcode-block" id="prepare_marginal_dist_for_raking"><a class="viewcode-back" href="../../../balance.weighting_methods.rake.html#balance.weighting_methods.rake.prepare_marginal_dist_for_raking">[docs]</a><span class="k">def</span> <span class="nf">prepare_marginal_dist_for_raking</span><span class="p">(</span>
+    <span class="n">dict_of_dicts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Realizes a nested dictionary of proportions into a DataFrame.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        dict_of_dicts: A nested dictionary where the outer keys are column names</span>
+<span class="sd">                   and the inner dictionaries have keys as category labels</span>
+<span class="sd">                   and values as their proportions (float).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A DataFrame with columns specified by the outer keys of the input dictionary</span>
+<span class="sd">        and rows containing the category labels according to their proportions.</span>
+<span class="sd">        An additional &quot;id&quot; column is added with integer values as row identifiers.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        ::</span>
+<span class="sd">            print(prepare_marginal_dist_for_raking({</span>
+<span class="sd">                            &quot;A&quot;: {&quot;a&quot;: 0.5, &quot;b&quot;: 0.5},</span>
+<span class="sd">                            &quot;B&quot;: {&quot;x&quot;: 0.2, &quot;y&quot;: 0.8}</span>
+<span class="sd">                        }))</span>
+<span class="sd">            # Returns a DataFrame with columns A, B, and id</span>
+<span class="sd">                #    A  B  id</span>
+<span class="sd">                # 0  a  x   0</span>
+<span class="sd">                # 1  b  y   1</span>
+<span class="sd">                # 2  a  y   2</span>
+<span class="sd">                # 3  b  y   3</span>
+<span class="sd">                # 4  a  y   4</span>
+<span class="sd">                # 5  b  x   5</span>
+<span class="sd">                # 6  a  y   6</span>
+<span class="sd">                # 7  b  y   7</span>
+<span class="sd">                # 8  a  y   8</span>
+<span class="sd">                # 9  b  y   9</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">target_dict_from_marginals</span> <span class="o">=</span> <span class="n">_realize_dicts_of_proportions</span><span class="p">(</span><span class="n">dict_of_dicts</span><span class="p">)</span>
+    <span class="n">target_df_from_marginals</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">target_dict_from_marginals</span><span class="p">)</span>
+    <span class="c1"># Add an id column:</span>
+    <span class="n">target_df_from_marginals</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">target_df_from_marginals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">target_df_from_marginals</span></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">balance  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../../balance.html" >balance</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">balance.weighting_methods.rake</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    </div>
+  </body>
+</html>
