@@ -15101,7 +15101,116 @@ body[data-format='mobile'] .jp-OutputArea-child .jp-OutputArea-output {
     }
     init_mathjax();
     </script>
-    <!-- End of mathjax configuration --></head>
+    <!-- End of mathjax configuration --><script type="module">
+  document.addEventListener("DOMContentLoaded", async () => {
+    const diagrams = document.querySelectorAll(".jp-Mermaid > pre.mermaid");
+    // do not load mermaidjs if not needed
+    if (!diagrams.length) {
+      return;
+    }
+    const mermaid = (await import("https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.2.3/mermaid.esm.min.mjs")).default;
+
+    mermaid.initialize({
+      maxTextSize: 100000,
+      startOnLoad: false,
+      fontFamily: window
+        .getComputedStyle(document.body)
+        .getPropertyValue("--jp-ui-font-family"),
+      theme: document.querySelector("body[data-jp-theme-light='true']")
+        ? "default"
+        : "dark",
+    });
+
+    let _nextMermaidId = 0;
+
+    function makeMermaidImage(svg) {
+      const img = document.createElement('img');
+      const maxWidth = svg.match(/max-width: (\d+)/);
+      if (maxWidth && maxWidth[1]) {
+        const width = parseInt(maxWidth[1]);
+        if (width && !Number.isNaN(width) && Number.isFinite(width)) {
+          img.width = width;
+        }
+      }
+      img.setAttribute('src', `data:image/svg+xml,${encodeURIComponent(svg)}`);
+      return img;
+    }
+
+    async function makeMermaidError(text) {
+      let errorMessage = '';
+      try {
+        await mermaid.parse(text);
+      } catch (err) {
+        errorMessage = `${err}`;
+      }
+
+      const result = document.createElement('details');
+      const summary = document.createElement('summary');
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.innerText = text;
+      pre.appendChild(code);
+      summary.appendChild(pre);
+      result.appendChild(summary);
+
+      const warning = document.createElement('pre');
+      warning.innerText = errorMessage;
+      result.appendChild(warning);
+      return result;
+    }
+
+    async function renderOneMarmaid(src) {
+      const id = `jp-mermaid-${_nextMermaidId++}`;
+      const parent = src.parentNode;
+      let raw = src.textContent.trim();
+      const el = document.createElement("div");
+      el.style.visibility = "hidden";
+      document.body.appendChild(el);
+      let result = null;
+      try {
+        const { svg } = await mermaid.render(id, raw, el);
+        result = makeMermaidImage(svg);
+      } catch (err) {
+        parent.classList.add("jp-mod-warning");
+        result = await makeMermaidError(raw);
+      } finally {
+        el.remove();
+      }
+      parent.classList.add("jp-RenderedMermaid");
+      parent.appendChild(result);
+    }
+
+    void Promise.all([...diagrams].map(renderOneMarmaid));
+  });
+</script>
+<style>
+  .jp-RenderedMarkdown .jp-Mermaid:not(.jp-RenderedMermaid) {
+    display: none;
+  }
+  .jp-RenderedMarkdown .jp-RenderedMermaid.jp-mod-warning {
+    width: auto;
+    padding: 10px;
+    border: var(--jp-border-width) solid var(--jp-warn-color2);
+    border-radius: var(--jp-border-radius);
+    color: var(--jp-ui-font-color1);
+    font-size: var(--jp-ui-font-size1);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .jp-RenderedMarkdown .jp-RenderedMermaid.jp-mod-warning details > pre {
+    margin-top: 1em;
+  }
+  .jp-RenderedMarkdown .jp-RenderedMermaid.jp-mod-warning summary {
+    color: var(--jp-warn-color2);
+  }
+  .jp-RenderedMarkdown .jp-RenderedMermaid.jp-mod-warning summary > pre {
+    display: inline-block;
+  }
+  .jp-RenderedMermaid > .mermaid {
+    display: none;
+  }
+</style>
+<!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 
 <div  class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
@@ -15161,7 +15270,7 @@ body[data-format='mobile'] .jp-OutputArea-child .jp-OutputArea-output {
 
 
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr">
-<pre>INFO (2023-06-09 07:03:14,079) [__init__/&lt;module&gt; (line 52)]: Using balance version 0.9.0
+<pre>INFO (2023-06-28 16:38:37,530) [__init__/&lt;module&gt; (line 52)]: Using balance version 0.9.0
 </pre>
 </div>
 </div>
@@ -15270,30 +15379,30 @@ In a future version of pandas all arguments of DataFrame.drop except for the arg
 
 
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr">
-<pre>WARNING (2023-06-09 07:03:14,278) [util/guess_id_column (line 111)]: Guessed id column name id for the data
-WARNING (2023-06-09 07:03:14,280) [sample_class/from_frame (line 188)]: Casting id column to string
-WARNING (2023-06-09 07:03:14,288) [util/_warn_of_df_dtypes_change (line 1842)]: The dtypes of sample._df were changed from the original dtypes of the input df, here are the differences - 
-WARNING (2023-06-09 07:03:14,289) [util/_warn_of_df_dtypes_change (line 1853)]: The (old) dtypes that changed for df (before the change):
-WARNING (2023-06-09 07:03:14,291) [util/_warn_of_df_dtypes_change (line 1856)]: 
+<pre>WARNING (2023-06-28 16:38:37,711) [util/guess_id_column (line 111)]: Guessed id column name id for the data
+WARNING (2023-06-28 16:38:37,712) [sample_class/from_frame (line 188)]: Casting id column to string
+WARNING (2023-06-28 16:38:37,720) [util/_warn_of_df_dtypes_change (line 1842)]: The dtypes of sample._df were changed from the original dtypes of the input df, here are the differences - 
+WARNING (2023-06-28 16:38:37,721) [util/_warn_of_df_dtypes_change (line 1853)]: The (old) dtypes that changed for df (before the change):
+WARNING (2023-06-28 16:38:37,722) [util/_warn_of_df_dtypes_change (line 1856)]: 
 id    int64
 dtype: object
-WARNING (2023-06-09 07:03:14,292) [util/_warn_of_df_dtypes_change (line 1857)]: The (new) dtypes saved in df (after the change):
-WARNING (2023-06-09 07:03:14,293) [util/_warn_of_df_dtypes_change (line 1858)]: 
+WARNING (2023-06-28 16:38:37,723) [util/_warn_of_df_dtypes_change (line 1857)]: The (new) dtypes saved in df (after the change):
+WARNING (2023-06-28 16:38:37,724) [util/_warn_of_df_dtypes_change (line 1858)]: 
 id    object
 dtype: object
-WARNING (2023-06-09 07:03:14,293) [sample_class/from_frame (line 259)]: No weights passed. Adding a &#39;weight&#39; column and setting all values to 1
-WARNING (2023-06-09 07:03:14,303) [util/guess_id_column (line 111)]: Guessed id column name id for the data
-WARNING (2023-06-09 07:03:14,304) [sample_class/from_frame (line 188)]: Casting id column to string
-WARNING (2023-06-09 07:03:14,311) [util/_warn_of_df_dtypes_change (line 1842)]: The dtypes of sample._df were changed from the original dtypes of the input df, here are the differences - 
-WARNING (2023-06-09 07:03:14,312) [util/_warn_of_df_dtypes_change (line 1853)]: The (old) dtypes that changed for df (before the change):
-WARNING (2023-06-09 07:03:14,314) [util/_warn_of_df_dtypes_change (line 1856)]: 
+WARNING (2023-06-28 16:38:37,725) [sample_class/from_frame (line 259)]: No weights passed. Adding a &#39;weight&#39; column and setting all values to 1
+WARNING (2023-06-28 16:38:37,734) [util/guess_id_column (line 111)]: Guessed id column name id for the data
+WARNING (2023-06-28 16:38:37,735) [sample_class/from_frame (line 188)]: Casting id column to string
+WARNING (2023-06-28 16:38:37,743) [util/_warn_of_df_dtypes_change (line 1842)]: The dtypes of sample._df were changed from the original dtypes of the input df, here are the differences - 
+WARNING (2023-06-28 16:38:37,744) [util/_warn_of_df_dtypes_change (line 1853)]: The (old) dtypes that changed for df (before the change):
+WARNING (2023-06-28 16:38:37,745) [util/_warn_of_df_dtypes_change (line 1856)]: 
 id    int64
 dtype: object
-WARNING (2023-06-09 07:03:14,314) [util/_warn_of_df_dtypes_change (line 1857)]: The (new) dtypes saved in df (after the change):
-WARNING (2023-06-09 07:03:14,315) [util/_warn_of_df_dtypes_change (line 1858)]: 
+WARNING (2023-06-28 16:38:37,746) [util/_warn_of_df_dtypes_change (line 1857)]: The (new) dtypes saved in df (after the change):
+WARNING (2023-06-28 16:38:37,747) [util/_warn_of_df_dtypes_change (line 1858)]: 
 id    object
 dtype: object
-WARNING (2023-06-09 07:03:14,317) [sample_class/from_frame (line 259)]: No weights passed. Adding a &#39;weight&#39; column and setting all values to 1
+WARNING (2023-06-28 16:38:37,748) [sample_class/from_frame (line 259)]: No weights passed. Adding a &#39;weight&#39; column and setting all values to 1
 </pre>
 </div>
 </div>
@@ -15331,14 +15440,14 @@ WARNING (2023-06-09 07:03:14,317) [sample_class/from_frame (line 259)]: No weigh
 
 
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr">
-<pre>INFO (2023-06-09 07:03:14,326) [cbps/cbps (line 409)]: Starting cbps function
-INFO (2023-06-09 07:03:14,340) [cbps/cbps (line 460)]: The formula used to build the model matrix: [&#39;X4 + X3 + X2 + X1&#39;]
-INFO (2023-06-09 07:03:14,341) [cbps/cbps (line 472)]: The number of columns in the model matrix: 4
-INFO (2023-06-09 07:03:14,342) [cbps/cbps (line 473)]: The number of rows in the model matrix: 500
-INFO (2023-06-09 07:03:14,344) [cbps/cbps (line 535)]: Finding initial estimator for GMM optimization
-INFO (2023-06-09 07:03:14,352) [cbps/cbps (line 562)]: Finding initial estimator for GMM optimization that minimizes the balance loss
-INFO (2023-06-09 07:03:14,375) [cbps/cbps (line 597)]: Running GMM optimization
-INFO (2023-06-09 07:03:14,401) [cbps/cbps (line 726)]: Done cbps function
+<pre>INFO (2023-06-28 16:38:37,757) [cbps/cbps (line 409)]: Starting cbps function
+INFO (2023-06-28 16:38:37,770) [cbps/cbps (line 460)]: The formula used to build the model matrix: [&#39;X4 + X3 + X2 + X1&#39;]
+INFO (2023-06-28 16:38:37,771) [cbps/cbps (line 472)]: The number of columns in the model matrix: 4
+INFO (2023-06-28 16:38:37,771) [cbps/cbps (line 473)]: The number of rows in the model matrix: 500
+INFO (2023-06-28 16:38:37,773) [cbps/cbps (line 535)]: Finding initial estimator for GMM optimization
+INFO (2023-06-28 16:38:37,782) [cbps/cbps (line 562)]: Finding initial estimator for GMM optimization that minimizes the balance loss
+INFO (2023-06-28 16:38:37,804) [cbps/cbps (line 597)]: Running GMM optimization
+INFO (2023-06-28 16:38:37,829) [cbps/cbps (line 726)]: Done cbps function
 </pre>
 </div>
 </div>
@@ -15839,7 +15948,7 @@ class="
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain">
 <pre>-----
 balance             0.9.0
-numpy               1.24.3
+numpy               1.24.4
 pandas              1.4.3
 session_info        1.0.0
 -----
@@ -15880,10 +15989,10 @@ glmnetSet           NA
 glmnet_python       NA
 hypergeom_ufunc     NA
 ipfn                NA
-ipykernel           6.23.1
+ipykernel           6.23.3
 ipython_genutils    0.2.0
 jedi                0.18.2
-joblib              1.2.0
+joblib              1.3.0
 kiwisolver          1.4.4
 loadGlmLib          NA
 lognet              NA
@@ -15900,7 +16009,7 @@ patsy               0.5.3
 pexpect             4.8.0
 pickleshare         0.7.5
 pkg_resources       NA
-platformdirs        3.5.1
+platformdirs        3.8.0
 plotly              5.15.0
 prompt_toolkit      3.0.38
 psutil              5.9.5
@@ -15930,18 +16039,17 @@ typing_extensions   NA
 wcwidth             0.2.6
 wtmean              NA
 zmq                 25.1.0
-zoneinfo            NA
 zope                NA
 -----
 IPython             8.14.0
-jupyter_client      8.2.0
-jupyter_core        5.3.0
+jupyter_client      8.3.0
+jupyter_core        5.3.1
 notebook            6.5.4
 -----
-Python 3.10.6 (main, Mar 10 2023, 10:55:28) [GCC 11.3.0]
-Linux-5.15.0-1038-azure-x86_64-with-glibc2.35
+Python 3.10.6 (main, May 29 2023, 11:10:38) [GCC 11.3.0]
+Linux-5.15.0-1040-azure-x86_64-with-glibc2.35
 -----
-Session information updated at 2023-06-09 07:03
+Session information updated at 2023-06-28 16:38
 </pre>
 </div>
 </div>
