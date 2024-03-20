@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 
-<html lang="en">
+<html lang="en" data-content_root="../../../">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>balance.weighting_methods.rake &#8212; balance  documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=2a422f08" />
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=b3ba4146"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=eeb27264" />
+    <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
     <script src="../../../_static/doctools.js?v=888ff710"></script>
-    <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" /> 
   </head><body>
@@ -40,6 +40,8 @@
 <span class="c1"># This software may be used and distributed according to the terms of the</span>
 <span class="c1"># GNU General Public License version 2.</span>
 
+<span class="c1"># pyre-unsafe</span>
+
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span>
 
 <span class="kn">import</span> <span class="nn">logging</span>
@@ -60,7 +62,9 @@
 
 
 <span class="c1"># TODO: Add options for only marginal distributions input</span>
-<div class="viewcode-block" id="rake"><a class="viewcode-back" href="../../../balance.weighting_methods.rake.html#balance.weighting_methods.rake.rake">[docs]</a><span class="k">def</span> <span class="nf">rake</span><span class="p">(</span>
+<div class="viewcode-block" id="rake">
+<a class="viewcode-back" href="../../../balance.weighting_methods.rake.html#balance.weighting_methods.rake.rake">[docs]</a>
+<span class="k">def</span> <span class="nf">rake</span><span class="p">(</span>
     <span class="n">sample_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">sample_weights</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
     <span class="n">target_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
@@ -168,6 +172,8 @@
     <span class="c1"># series of type Object, which won&#39;t work for the ipfn script</span>
     <span class="n">levels_dict</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+        <span class="c1"># pyre-fixme[16]: Optional type has no attribute `__setitem__`.</span>
+        <span class="c1"># pyre-fixme[16]: Optional type has no attribute `__getitem__`.</span>
         <span class="n">target_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">target_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
         <span class="n">sample_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample_df</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
 
@@ -192,6 +198,7 @@
         <span class="sa">f</span><span class="s2">&quot;Final covariates and levels that will be used in raking: </span><span class="si">{</span><span class="n">levels_dict</span><span class="si">}</span><span class="s2">.&quot;</span>
     <span class="p">)</span>
 
+    <span class="c1"># pyre-fixme[16]: Optional type has no attribute `assign`.</span>
     <span class="n">target_df</span> <span class="o">=</span> <span class="n">target_df</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">weight</span><span class="o">=</span><span class="n">target_weights</span><span class="p">)</span>
     <span class="n">sample_df</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">weight</span><span class="o">=</span><span class="n">sample_weights</span><span class="p">)</span>
 
@@ -291,6 +298,7 @@
             <span class="c1"># TODO: fix functions that use the perf and remove it from here</span>
         <span class="p">},</span>
     <span class="p">}</span></div>
+
 
 
 <span class="k">def</span> <span class="nf">_lcm</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -480,7 +488,9 @@
     <span class="k">return</span> <span class="n">result</span>
 
 
-<div class="viewcode-block" id="prepare_marginal_dist_for_raking"><a class="viewcode-back" href="../../../balance.weighting_methods.rake.html#balance.weighting_methods.rake.prepare_marginal_dist_for_raking">[docs]</a><span class="k">def</span> <span class="nf">prepare_marginal_dist_for_raking</span><span class="p">(</span>
+<div class="viewcode-block" id="prepare_marginal_dist_for_raking">
+<a class="viewcode-back" href="../../../balance.weighting_methods.rake.html#balance.weighting_methods.rake.prepare_marginal_dist_for_raking">[docs]</a>
+<span class="k">def</span> <span class="nf">prepare_marginal_dist_for_raking</span><span class="p">(</span>
     <span class="n">dict_of_dicts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -521,6 +531,7 @@
     <span class="n">target_df_from_marginals</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">target_df_from_marginals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
     <span class="k">return</span> <span class="n">target_df_from_marginals</span></div>
+
 </pre></div>
 
             <div class="clearer"></div>
