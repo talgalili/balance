@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>balance.adjustment &#8212; balance  documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=fb9458d3" />
     <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
     <script src="../../_static/doctools.js?v=9a2dae69"></script>
@@ -13,7 +13,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
   </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related" role="navigation" aria-label="Related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -37,30 +37,31 @@
   <h1>Source code for balance.adjustment</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Copyright (c) Meta Platforms, Inc. and affiliates.</span>
 <span class="c1">#</span>
-<span class="c1"># This software may be used and distributed according to the terms of the</span>
-<span class="c1"># GNU General Public License version 2.</span>
+<span class="c1"># This source code is licensed under the MIT license found in the</span>
+<span class="c1"># LICENSE file in the root directory of this source tree.</span>
 
 <span class="c1"># pyre-unsafe</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span>
 
-<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">npt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy</span>
 
-<span class="kn">from</span> <span class="nn">balance</span> <span class="kn">import</span> <span class="n">util</span> <span class="k">as</span> <span class="n">balance_util</span>
-<span class="kn">from</span> <span class="nn">balance.weighting_methods</span> <span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">balance</span><span class="w"> </span><span class="kn">import</span> <span class="n">util</span> <span class="k">as</span> <span class="n">balance_util</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">balance.weighting_methods</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">adjust_null</span> <span class="k">as</span> <span class="n">balance_adjust_null</span><span class="p">,</span>
     <span class="n">cbps</span> <span class="k">as</span> <span class="n">balance_cbps</span><span class="p">,</span>
     <span class="n">ipw</span> <span class="k">as</span> <span class="n">balance_ipw</span><span class="p">,</span>
     <span class="n">poststratify</span> <span class="k">as</span> <span class="n">balance_poststratify</span><span class="p">,</span>
     <span class="n">rake</span> <span class="k">as</span> <span class="n">balance_rake</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">pandas.api.types</span> <span class="kn">import</span> <span class="n">is_bool_dtype</span><span class="p">,</span> <span class="n">is_numeric_dtype</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandas.api.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_bool_dtype</span><span class="p">,</span> <span class="n">is_numeric_dtype</span>
 
 <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__package__</span><span class="p">)</span>
 
@@ -74,56 +75,128 @@
 <span class="p">}</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_limit</span><span class="p">(</span>
+    <span class="n">limit</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">n_weights</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate and adjust a percentile limit for use with scipy.stats.mstats.winsorize.</span>
+
+<span class="sd">    This function prepares percentile limits for winsorization by:</span>
+<span class="sd">    1. Validating that finite limits are within valid bounds (0-1)</span>
+<span class="sd">    2. Adding a small adjustment to finite, non-zero limits to ensure at least</span>
+<span class="sd">       one value gets winsorized at the boundary percentile</span>
+
+<span class="sd">    The adjustment prevents edge cases where the exact percentile value might not</span>
+<span class="sd">    trigger winsorization due to floating-point precision or discrete data distributions.</span>
+<span class="sd">    The adjustment is the minimum of (2/n_weights, limit/10), capped at 1.0.</span>
+
+<span class="sd">    Special cases:</span>
+<span class="sd">    - None: Returns None unchanged (no winsorization on this side)</span>
+<span class="sd">    - 0: Returns 0.0 (no winsorization on this side)</span>
+<span class="sd">    - Non-finite (inf): Returns as-is without validation or adjustment</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        limit (Union[float, int, None]): The percentile limit to validate.</span>
+<span class="sd">            For finite values, should be between 0 and 1.</span>
+<span class="sd">        n_weights (int): The number of weights in the dataset. Used to calculate</span>
+<span class="sd">            an adjustment factor that scales inversely with sample size.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Union[float, None]: The validated and adjusted limit, or None if the</span>
+<span class="sd">            input limit was None.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If the limit is finite and not between 0 and 1.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">limit</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">limit</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">limit</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="c1"># Check for non-finite values before validating range</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">limit</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">limit</span>
+    <span class="c1"># Validate range only for finite values</span>
+    <span class="k">if</span> <span class="n">limit</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">limit</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Percentile limits must be between 0 and 1&quot;</span><span class="p">)</span>
+    <span class="c1"># Apply adjustment for finite values within valid range</span>
+    <span class="n">extra</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">n_weights</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">limit</span> <span class="o">/</span> <span class="mf">10.0</span><span class="p">)</span>
+    <span class="n">adjusted</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">limit</span> <span class="o">+</span> <span class="n">extra</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">adjusted</span>
+
+
 <div class="viewcode-block" id="trim_weights">
 <a class="viewcode-back" href="../../balance.adjustment.html#balance.adjustment.trim_weights">[docs]</a>
-<span class="k">def</span> <span class="nf">trim_weights</span><span class="p">(</span>
-    <span class="n">weights</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">trim_weights</span><span class="p">(</span>
+    <span class="n">weights</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">],</span>
     <span class="c1"># TODO: add support to more types of input weights? (e.g. list? other?)</span>
     <span class="n">weight_trimming_mean_ratio</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">weight_trimming_percentile</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">keep_sum_of_weights</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">target_sum_weights</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Trim extreme weights.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Trim extreme weights using mean ratio clipping or percentile-based winsorization.</span>
 
 <span class="sd">    The user cannot supply both weight_trimming_mean_ratio and weight_trimming_percentile.</span>
-<span class="sd">    If none are supplied, the original weights are returned.</span>
+<span class="sd">    If neither is supplied, the original weights are returned unchanged.</span>
 
-<span class="sd">    If `weight_trimming_mean_ratio` is not None, the weights are trimmed from above by</span>
-<span class="sd">    mean(weights) * ratio. The weights are then normalized to have the original mean.</span>
-<span class="sd">    Note that trimmed weights aren&#39;t actually bounded by trimming.ratio because the</span>
-<span class="sd">    reduced weight is redistributed to arrive at the original mean.</span>
+<span class="sd">    **Mean Ratio Trimming (weight_trimming_mean_ratio)**:</span>
+<span class="sd">    When specified, weights are clipped from above at mean(weights) * ratio, then</span>
+<span class="sd">    renormalized to preserve the original mean. This is a hard upper bound.</span>
+<span class="sd">    Note: Final weights may slightly exceed the trimming ratio due to renormalization</span>
+<span class="sd">    redistributing the clipped weight mass across all observations.</span>
 
-<span class="sd">    If `weight_trimming_percentile` is not None, the weights are trimmed according to the percentiles of the distribution of the weights.</span>
-<span class="sd">    Note that weight_trimming_percentile by default clips both sides of the distribution, unlike</span>
-<span class="sd">    trimming that only trims the weights from above.</span>
-<span class="sd">    For example, `weight_trimming_percentile=0.1` trims below the 10th percentile AND above the 90th.</span>
-<span class="sd">    If you only want to trim the upper side, specify `weight_trimming_percentile = (0, 0.1)`. If you only want to trim the lower side, specify</span>
-<span class="sd">    `weight_trimming_percentile = (0.1, 0)`.</span>
+<span class="sd">    **Percentile-Based Winsorization (weight_trimming_percentile)**:</span>
+<span class="sd">    When specified, extreme weights are replaced with less extreme values using</span>
+<span class="sd">    scipy.stats.mstats.winsorize. By default, winsorization affects both tails</span>
+<span class="sd">    of the distribution symmetrically, unlike mean ratio trimming which only</span>
+<span class="sd">    clips from above.</span>
+
+<span class="sd">    Behavior:</span>
+<span class="sd">    - Single value (e.g., 0.1): Winsorizes below 10th AND above 90th percentile</span>
+<span class="sd">    - Tuple (lower, upper): Winsorizes independently on each side</span>
+<span class="sd">      - (0.1, 0): Only winsorizes below 10th percentile</span>
+<span class="sd">      - (0, 0.1): Only winsorizes above 90th percentile</span>
+<span class="sd">      - (0.01, 0.05): Winsorizes below 1st AND above 95th percentile</span>
+
+<span class="sd">    Important implementation detail: Percentile limits are automatically adjusted</span>
+<span class="sd">    upward slightly (via _validate_limit) to ensure at least one value gets</span>
+<span class="sd">    winsorized at boundary percentiles. This prevents edge cases where discrete</span>
+<span class="sd">    distributions or floating-point precision might prevent winsorization at the</span>
+<span class="sd">    exact percentile value. The adjustment is min(2/n_weights, limit/10), capped at 1.0.</span>
+
+<span class="sd">    After trimming/winsorization, if keep_sum_of_weights=True (default), weights</span>
+<span class="sd">    are rescaled to preserve the original sum of weights.  Alternatively, pass a</span>
+<span class="sd">    ``target_sum_weights`` to rescale the trimmed weights so their sum matches a</span>
+<span class="sd">    desired total.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        weights (Union[pd.Series, np.ndarray]): pd.Series of weights to trim. np.ndarray will be turned into pd.Series) of weights.</span>
-<span class="sd">        weight_trimming_mean_ratio (Union[float, int], optional): indicating the ratio from above according to which</span>
-<span class="sd">            the weights are trimmed by mean(weights) * ratio. Defaults to None.</span>
-<span class="sd">        weight_trimming_percentile (Union[float], optional): if `weight_trimming_percentile` is not None,</span>
-<span class="sd">            then we apply winsorization using :func:`scipy.stats.mstats.winsorize`. Ranges between 0 and 1.</span>
-<span class="sd">            If a single value is passed, indicates the percentiles on both sides of the weight distribution beyond which the weights will be winsorized.</span>
-<span class="sd">            If two values are passed, the first value is the lower percentiles below which winsorizing will be applied, and the second is the 1. - upper percentile above which winsorizing will be applied.</span>
-<span class="sd">            For example, `weight_trimming_percentile=(0.01, 0.05)` will trim the weights with values below the 1st percentile and above the 95th percentile of the weight distribution.</span>
-<span class="sd">            See also: [https://en.wikipedia.org/wiki/Winsorizing].</span>
-<span class="sd">            Defaults to None.</span>
-<span class="sd">        verbose (bool, optional): whether to add to logger printout of trimming process.</span>
+<span class="sd">        weights (Union[pd.Series, np.ndarray]): Weights to trim. np.ndarray will be</span>
+<span class="sd">            converted to pd.Series internally.</span>
+<span class="sd">        weight_trimming_mean_ratio (Union[float, int], optional): Ratio for upper bound</span>
+<span class="sd">            clipping as mean(weights) * ratio. Mutually exclusive with</span>
+<span class="sd">            weight_trimming_percentile. Defaults to None.</span>
+<span class="sd">        weight_trimming_percentile (Union[float, Tuple[float, float]], optional):</span>
+<span class="sd">            Percentile limits for winsorization. Value(s) must be between 0 and 1.</span>
+<span class="sd">            - Single float: Symmetric winsorization on both tails</span>
+<span class="sd">            - Tuple[float, float]: (lower_percentile, upper_percentile) for</span>
+<span class="sd">              independent control of each tail</span>
+<span class="sd">            Mutually exclusive with weight_trimming_mean_ratio. Defaults to None.</span>
+<span class="sd">        verbose (bool, optional): Whether to log details about the trimming process.</span>
 <span class="sd">            Defaults to False.</span>
-<span class="sd">        keep_sum_of_weights (bool, optional): Set if the sum of weights after trimming</span>
-<span class="sd">            should be the same as the sum of weights before trimming.</span>
-<span class="sd">            Defaults to True.</span>
+<span class="sd">        keep_sum_of_weights (bool, optional): Whether to rescale weights after trimming</span>
+<span class="sd">            to preserve the original sum of weights. Defaults to True.</span>
+<span class="sd">        target_sum_weights (Union[float, int, np.floating, None], optional): If</span>
+<span class="sd">            provided, rescale the trimmed weights so their sum equals this</span>
+<span class="sd">            target. ``None`` (default) leaves the post-trimming sum unchanged.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If weights is not np.array or pd.Series.</span>
-<span class="sd">        ValueError: If both weight_trimming_mean_ratio and weight_trimming_percentile are set.</span>
+<span class="sd">        ValueError: If both weight_trimming_mean_ratio and weight_trimming_percentile</span>
+<span class="sd">            are specified, or if weight_trimming_percentile tuple has length != 2.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        pd.Series (of type float64): Trimmed weights</span>
+<span class="sd">        pd.Series (of type float64): Trimmed weights with the same index as input</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        ::</span>
@@ -186,14 +259,21 @@
 <span class="sd">                # 99  95.283019</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="n">original_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">):</span>
-        <span class="k">pass</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-        <span class="n">weights</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">original_name</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;weights must be np.array or pd.Series, are of type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span>
+    <span class="n">weights_index</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">index</span>
+
+    <span class="n">n_weights</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_weights</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="p">(</span><span class="n">weight_trimming_mean_ratio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span>
         <span class="n">weight_trimming_percentile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -203,7 +283,7 @@
             <span class="s2">&quot;weight_trimming_percentile can be set&quot;</span>
         <span class="p">)</span>
 
-    <span class="n">original_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+    <span class="n">original_mean</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">weights</span><span class="p">))</span>
 
     <span class="k">if</span> <span class="n">weight_trimming_mean_ratio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">max_val</span> <span class="o">=</span> <span class="n">weight_trimming_mean_ratio</span> <span class="o">*</span> <span class="n">original_mean</span>
@@ -215,18 +295,54 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Clipped </span><span class="si">%s</span><span class="s2"> of the weights&quot;</span> <span class="o">%</span> <span class="n">percent_trimmed</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No extreme weights were trimmed&quot;</span><span class="p">)</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+            <span class="n">index</span><span class="o">=</span><span class="n">weights_index</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">original_name</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="k">elif</span> <span class="n">weight_trimming_percentile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># Winsorize</span>
+        <span class="n">percentile</span> <span class="o">=</span> <span class="n">weight_trimming_percentile</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">percentile</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">percentile</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;weight_trimming_percentile must be a single value or a length-2 iterable&quot;</span>
+                <span class="p">)</span>
+            <span class="n">lower_limit</span><span class="p">,</span> <span class="n">upper_limit</span> <span class="o">=</span> <span class="n">percentile</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lower_limit</span> <span class="o">=</span> <span class="n">upper_limit</span> <span class="o">=</span> <span class="n">percentile</span>
+
+        <span class="n">adjusted_limits</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">_validate_limit</span><span class="p">(</span><span class="n">lower_limit</span><span class="p">,</span> <span class="n">n_weights</span><span class="p">),</span>
+            <span class="n">_validate_limit</span><span class="p">(</span><span class="n">upper_limit</span><span class="p">,</span> <span class="n">n_weights</span><span class="p">),</span>
+        <span class="p">)</span>
+
         <span class="n">weights</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">mstats</span><span class="o">.</span><span class="n">winsorize</span><span class="p">(</span>
-            <span class="n">weights</span><span class="p">,</span> <span class="n">limits</span><span class="o">=</span><span class="n">weight_trimming_percentile</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span>
+            <span class="n">weights</span><span class="p">,</span> <span class="n">limits</span><span class="o">=</span><span class="n">adjusted_limits</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
                 <span class="s2">&quot;Winsorizing weights to </span><span class="si">%s</span><span class="s2"> percentile&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">weight_trimming_percentile</span><span class="p">)</span>
             <span class="p">)</span>
 
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+            <span class="n">index</span><span class="o">=</span><span class="n">weights_index</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">original_name</span><span class="p">,</span>
+        <span class="p">)</span>
+
     <span class="k">if</span> <span class="n">keep_sum_of_weights</span><span class="p">:</span>
         <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span> <span class="o">*</span> <span class="n">original_mean</span>
+
+    <span class="k">if</span> <span class="n">target_sum_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">target_total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">target_sum_weights</span><span class="p">)</span>
+        <span class="n">current_total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">current_total</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot normalise weights because their sum is zero.&quot;</span><span class="p">)</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="p">(</span><span class="n">target_total</span> <span class="o">/</span> <span class="n">current_total</span><span class="p">)</span>
+
+    <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">original_name</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">weights</span></div>
 
@@ -234,8 +350,8 @@
 
 <div class="viewcode-block" id="default_transformations">
 <a class="viewcode-back" href="../../balance.adjustment.html#balance.adjustment.default_transformations">[docs]</a>
-<span class="k">def</span> <span class="nf">default_transformations</span><span class="p">(</span>
-    <span class="n">dfs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">default_transformations</span><span class="p">(</span>
+    <span class="n">dfs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Apply default transformations to dfs, i.e.</span>
@@ -266,7 +382,7 @@
 
 <div class="viewcode-block" id="apply_transformations">
 <a class="viewcode-back" href="../../balance.adjustment.html#balance.adjustment.apply_transformations">[docs]</a>
-<span class="k">def</span> <span class="nf">apply_transformations</span><span class="p">(</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_transformations</span><span class="p">(</span>
     <span class="n">dfs</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
     <span class="n">transformations</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
     <span class="n">drop</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -342,7 +458,6 @@
 
     <span class="c1"># additions is new columns to add to data. i.e.: column names that appear in transformations</span>
     <span class="c1">#   but are not present in all_data.</span>
-    <span class="c1"># pyre-fixme[16]: Optional type has no attribute `columns`.</span>
     <span class="n">additions</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">transformations</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_data</span><span class="o">.</span><span class="n">columns</span><span class="p">}</span>
     <span class="n">transformations</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">transformations</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">all_data</span><span class="o">.</span><span class="n">columns</span>
@@ -359,7 +474,6 @@
     <span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;No transformations or additions passed&quot;</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">additions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="c1"># pyre-fixme[16]: Optional type has no attribute `assign`.</span>
         <span class="n">added</span> <span class="o">=</span> <span class="n">all_data</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="o">**</span><span class="n">additions</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="nb">list</span><span class="p">(</span><span class="n">additions</span><span class="o">.</span><span class="n">keys</span><span class="p">())]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">added</span> <span class="o">=</span> <span class="kc">None</span>
@@ -372,7 +486,6 @@
         <span class="c1"># Adding .copy(deep=False) solves this.</span>
         <span class="c1"># See: https://stackoverflow.com/a/54914752</span>
         <span class="n">transformed</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
-            <span class="c1"># pyre-fixme[16]: Optional type has no attribute `copy`.</span>
             <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">(</span><span class="n">all_data</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="n">k</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">transformations</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -386,14 +499,13 @@
         <span class="k">if</span> <span class="n">drop</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dropping the variables: </span><span class="si">{</span><span class="n">dropped_columns</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># pyre-fixme[16]: Optional type has no attribute `loc`.</span>
             <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">out</span><span class="p">,</span> <span class="n">all_data</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">dropped_columns</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Final variables in output: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">out</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Frequency table of column </span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="si">{</span><span class="n">out</span><span class="p">[</span><span class="n">column</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">(</span><span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
+        <span class="c1"># Create frequency table without using value_counts to avoid FutureWarning</span>
+        <span class="n">freq_table</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">column</span><span class="p">]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="n">column</span><span class="p">],</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Frequency table of column </span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="si">{</span><span class="n">freq_table</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Number of levels of column </span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="si">{</span><span class="n">out</span><span class="p">[</span><span class="n">column</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">(</span><span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span>
@@ -405,7 +517,7 @@
 
 
 
-<span class="k">def</span> <span class="nf">_find_adjustment_method</span><span class="p">(</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_find_adjustment_method</span><span class="p">(</span>
     <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;cbps&quot;</span><span class="p">,</span> <span class="s2">&quot;ipw&quot;</span><span class="p">,</span> <span class="s2">&quot;null&quot;</span><span class="p">,</span> <span class="s2">&quot;poststratify&quot;</span><span class="p">,</span> <span class="s2">&quot;rake&quot;</span><span class="p">],</span>
     <span class="n">WEIGHTING_METHODS</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="n">BALANCE_WEIGHTING_METHODS</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
@@ -431,7 +543,7 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
         <div class="sphinxsidebarwrapper">
 <search id="searchbox" style="display: none" role="search">
   <h3 id="searchlabel">Quick search</h3>
@@ -447,7 +559,7 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related" role="navigation" aria-label="Related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
