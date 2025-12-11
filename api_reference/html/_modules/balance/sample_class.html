@@ -52,12 +52,14 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance</span><span class="w"> </span><span class="kn">import</span> <span class="n">adjustment</span> <span class="k">as</span> <span class="n">balance_adjustment</span><span class="p">,</span> <span class="n">util</span> <span class="k">as</span> <span class="n">balance_util</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">balance.csv_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_csv_with_defaults</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.stats_and_plots</span><span class="w"> </span><span class="kn">import</span> <span class="n">weights_stats</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.stats_and_plots.weighted_comparisons_stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">outcome_variance_ratio</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilePathOrBuffer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">balance.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">_detect_high_cardinality_features</span><span class="p">,</span> <span class="n">HighCardinalityFeature</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">IPython.lib.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">FileLink</span>
 
@@ -82,6 +84,7 @@
 <span class="sd">        a column representing the weights of the units in sample</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="c1"># TODO: fix the following missing pyre-strict issues:</span>
     <span class="c1"># The following attributes are updated when initiating Sample using Sample.from_frame</span>
     <span class="c1"># pyre-fixme[4]: Attributes are initialized in from_frame()</span>
     <span class="n">_df</span> <span class="o">=</span> <span class="kc">None</span>
@@ -89,6 +92,8 @@
     <span class="n">id_column</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="c1"># pyre-fixme[4]: Attributes are initialized in from_frame()</span>
     <span class="n">_outcome_columns</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># pyre-fixme[4]: Attributes are initialized in from_frame()</span>
+    <span class="n">_ignored_column_names</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="c1"># pyre-fixme[4]: Attributes are initialized in from_frame()</span>
     <span class="n">weight_column</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="c1"># pyre-fixme[4]: Attributes are initialized in from_frame()</span>
@@ -123,6 +128,49 @@
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">,</span> <span class="n">pkg_source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">__package__</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a readable summary of the sample and any applied adjustment.</span>
+
+<span class="sd">        The summary reports the number of observations, covariate names, id and</span>
+<span class="sd">        weight columns, available outcome columns, and whether a target has been</span>
+<span class="sd">        set. When an adjustment is present, quick diagnostics are included such</span>
+<span class="sd">        as the adjustment method, trimming configuration, and weight summaries</span>
+<span class="sd">        (design effect and implied effective sample size when available).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pkg_source: Package namespace used in the header of the printed</span>
+<span class="sd">                object. Defaults to ``balance`` and is primarily useful for</span>
+<span class="sd">                subclasses that wish to identify their own module.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Multi-line description of the ``Sample`` highlighting key</span>
+<span class="sd">                structure and adjustment details.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; from balance import Sample</span>
+<span class="sd">            &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">            &gt;&gt;&gt; df = pd.DataFrame({</span>
+<span class="sd">            ...     &quot;gender&quot;: [&quot;f&quot;, &quot;m&quot;],</span>
+<span class="sd">            ...     &quot;age_group&quot;: [&quot;18-24&quot;, &quot;25-34&quot;],</span>
+<span class="sd">            ...     &quot;id&quot;: [1, 2],</span>
+<span class="sd">            ...     &quot;weight&quot;: [1.2, 0.8],</span>
+<span class="sd">            ... })</span>
+<span class="sd">            &gt;&gt;&gt; sample = Sample.from_frame(df, id_column=&quot;id&quot;, weight_column=&quot;weight&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; adjusted = sample.set_target(sample).adjust(method=&quot;ipw&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; print(adjusted)</span>
+<span class="sd">            Adjusted balance Sample object with target set using ipw</span>
+<span class="sd">            2 observations x 2 variables: gender,age_group</span>
+<span class="sd">            id_column: id, weight_column: weight,</span>
+<span class="sd">            outcome_columns: None</span>
+<span class="sd">            adjustment details:</span>
+<span class="sd">                method: ipw</span>
+<span class="sd">                design effect (Deff): 1.013, eff. sample size: 2.0</span>
+<span class="sd">            target:</span>
+<span class="sd">                 balance Sample object</span>
+<span class="sd">                2 observations x 2 variables: gender,age_group</span>
+<span class="sd">                id_column: id, weight_column: weight,</span>
+<span class="sd">                outcome_columns: None</span>
+<span class="sd">                2 common variables: age_group,gender</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">is_adjusted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span> <span class="o">*</span> <span class="s2">&quot;Adjusted &quot;</span>
         <span class="n">n_rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">n_variables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_covar_columns</span><span class="p">()</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
@@ -151,6 +199,14 @@
 <span class="s2">        outcome_columns: </span><span class="si">{</span><span class="n">outcome_column_names</span><span class="si">}</span>
 <span class="s2">        &quot;&quot;&quot;</span>
 
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">():</span>
+            <span class="n">adjustment_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_quick_adjustment_details</span><span class="p">(</span><span class="n">n_rows</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">adjustment_details</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">desc</span> <span class="o">+=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        adjustment details:</span>
+<span class="s2">            </span><span class="si">{details}</span>
+<span class="s2">                &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">details</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">            &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">adjustment_details</span><span class="p">))</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_target</span><span class="p">():</span>
             <span class="n">common_variables</span> <span class="o">=</span> <span class="n">balance_util</span><span class="o">.</span><span class="n">choose_variables</span><span class="p">(</span>
                 <span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_links</span><span class="p">[</span><span class="s2">&quot;target&quot;</span><span class="p">],</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span>
@@ -165,10 +221,112 @@
 <span class="s2">            &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">desc</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_quick_adjustment_details</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">,</span> <span class="n">n_rows</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collect quick-to-compute adjustment diagnostics for display.</span>
+
+<span class="sd">        This helper centralizes the lightweight adjustment-related statistics</span>
+<span class="sd">        surfaced in ``__str__`` so they can be reused by other presentation</span>
+<span class="sd">        helpers (for example, :meth:`summary`) without duplicating logic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            n_rows: Optional row count to use for effective sample size</span>
+<span class="sd">                calculations. Defaults to the current sample&#39;s row count.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[str]: Human-readable lines describing adjustment method,</span>
+<span class="sd">            trimming configuration, and weight diagnostics when available.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            The ``__str__`` example above shows these details rendered as part</span>
+<span class="sd">            of the adjusted sample printout. You can also retrieve them</span>
+<span class="sd">            directly for custom displays:</span>
+
+<span class="sd">            &gt;&gt;&gt; sample._quick_adjustment_details()  # doctest: +SKIP</span>
+<span class="sd">            [&#39;method: ipw&#39;, &#39;design effect (Deff): 1.013, eff. sample size: 2.0&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">adjustment_details</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;method&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">adjustment_details</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;method: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">trimming_mean_ratio</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;weight_trimming_mean_ratio&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">trimming_mean_ratio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">adjustment_details</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;weight trimming mean ratio: </span><span class="si">{</span><span class="n">trimming_mean_ratio</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+            <span class="n">trimming_percentile</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;weight_trimming_percentile&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">trimming_percentile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">adjustment_details</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;weight trimming percentile: </span><span class="si">{</span><span class="n">trimming_percentile</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_rows</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">n_rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">design_effect</span><span class="p">,</span> <span class="n">effective_n</span><span class="p">,</span> <span class="n">effective_sample_proportion</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_design_effect_diagnostics</span><span class="p">(</span><span class="n">n_rows</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">design_effect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">deff_line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;design effect (Deff): </span><span class="si">{</span><span class="n">design_effect</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="n">effective_sample_proportion</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">deff_line</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;, eff. sample size proportion: </span><span class="si">{</span><span class="n">effective_sample_proportion</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">effective_n</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">deff_line</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;, eff. sample size: </span><span class="si">{</span><span class="n">effective_n</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">adjustment_details</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">deff_line</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">adjustment_details</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_design_effect_diagnostics</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">n_rows</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute design effect and related effective sample statistics.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            n_rows: Optional number of rows to use for scaling. Defaults to the</span>
+<span class="sd">                sample size when not provided.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple of (design_effect, effective_sample_size, effective_sample_proportion).</span>
+<span class="sd">            If the design effect is unavailable or invalid, all values are ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">n_rows</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">n_rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_column</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">design_effect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_effect</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">ZeroDivisionError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unable to compute design effect: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">design_effect</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">design_effect</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="n">effective_sample_size</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">effective_sample_proportion</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">n_rows</span> <span class="ow">and</span> <span class="n">design_effect</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">effective_sample_size</span> <span class="o">=</span> <span class="n">n_rows</span> <span class="o">/</span> <span class="n">design_effect</span>
+            <span class="n">effective_sample_proportion</span> <span class="o">=</span> <span class="n">effective_sample_size</span> <span class="o">/</span> <span class="n">n_rows</span>
+
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">design_effect</span><span class="p">),</span> <span class="n">effective_sample_size</span><span class="p">,</span> <span class="n">effective_sample_proportion</span>
+
     <span class="c1">################################################################################</span>
     <span class="c1">#  Public API</span>
     <span class="c1">################################################################################</span>
 
+    <span class="c1"># TODO: add examples to the docstring</span>
 <div class="viewcode-block" id="Sample.from_frame">
 <a class="viewcode-back" href="../../balance.sample_class.html#balance.sample_class.Sample.from_frame">[docs]</a>
     <span class="nd">@classmethod</span>
@@ -178,6 +336,7 @@
         <span class="n">id_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">outcome_columns</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">weight_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ignore_columns</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">check_id_uniqueness</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">standardize_types</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">use_deepcopy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -203,6 +362,9 @@
 <span class="sd">            outcome_columns (list | tuple | str | None): names of columns to treat as outcome</span>
 <span class="sd">            weight_column (str | None): name of column to treat as weight. If not specified, will</span>
 <span class="sd">                be guessed (either &quot;weight&quot; or &quot;weights&quot;). If not found, a new column will be created (&quot;weight&quot;) and filled with 1.0.</span>
+<span class="sd">            ignore_columns (list | tuple | str | None): names of columns to keep on the</span>
+<span class="sd">                underlying dataframe but ignore in covariate/outcome handling. These columns</span>
+<span class="sd">                are excluded from outcome statistics and covariate selections. Defaults to None.</span>
 <span class="sd">            check_id_uniqueness (bool): Whether to check if ids are unique. Defaults to True.</span>
 <span class="sd">            standardize_types (bool): Whether to standardize types. Defaults to True.</span>
 <span class="sd">                Int64/int64 -&gt; float64</span>
@@ -304,7 +466,7 @@
                 <span class="n">weight_column</span> <span class="o">=</span> <span class="s2">&quot;weights&quot;</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># TODO: The current default when weights are not available is &quot;weight&quot;, while the method in balanceDF is called &quot;weights&quot;,</span>
-                <span class="c1">#       and the subclass is called BalanceWeightsDF (with and &#39;s&#39; at the end)</span>
+                <span class="c1">#       and the subclass is called BalanceDFWeights (with and &#39;s&#39; at the end)</span>
                 <span class="c1">#       In the future, it would be better to be more consistent and use the same name for all variations (e.g.: &quot;weight&quot;).</span>
                 <span class="c1">#       Unless, we move to use more weights columns, and this method could be used to get all of them.</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
@@ -321,10 +483,15 @@
                     <span class="p">)</span>
 
         <span class="c1"># verify that the weights are not null</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">_df</span><span class="p">[</span><span class="n">weight_column</span><span class="p">]</span><span class="o">.</span><span class="n">isnull</span><span class="p">()):</span>
+        <span class="n">null_weights</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">_df</span><span class="p">[</span><span class="n">weight_column</span><span class="p">]</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">null_weights</span><span class="p">):</span>
+            <span class="n">null_weight_rows</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">null_weights</span><span class="p">]</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+            <span class="n">null_weight_rows_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">null_weights</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;Null values are not allowed in the weight_column. &quot;</span>
-                <span class="o">+</span> <span class="s2">&quot;If you wish to remove an observation, either remove it from the df, or use a weight of 0.&quot;</span>
+                <span class="s2">&quot;Null values (including None) are not allowed in the weight_column. &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;If you wish to remove an observation, either remove it from the df, or use a weight of 0. &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">null_weight_rows_count</span><span class="si">}</span><span class="s2"> row(s) with null weights. Preview (up to 5 rows):</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="o">+</span> <span class="n">null_weight_rows</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="p">)</span>
 
         <span class="c1"># verify that the weights are numeric</span>
@@ -337,12 +504,47 @@
 
         <span class="n">sample</span><span class="o">.</span><span class="n">weight_column</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">_df</span><span class="p">[</span><span class="n">weight_column</span><span class="p">]</span>
 
+        <span class="c1"># ignore columns</span>
+        <span class="k">if</span> <span class="n">ignore_columns</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample</span><span class="o">.</span><span class="n">_ignored_column_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ignore_columns</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">ignore_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">ignore_columns</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">ignore_columns</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;ignore_columns must be strings&quot;</span><span class="p">)</span>
+
+            <span class="n">missing_ignore</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">ignore_columns</span><span class="p">)</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">missing_ignore</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;ignore columns </span><span class="si">{</span><span class="n">missing_ignore</span><span class="si">}</span><span class="s2"> not in df columns </span><span class="si">{</span><span class="n">sample</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+            <span class="n">duplicate_preserving_order</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">ignore_columns</span><span class="p">))</span>
+            <span class="n">reserved_columns</span> <span class="o">=</span> <span class="p">{</span><span class="n">id_column</span><span class="p">,</span> <span class="n">weight_column</span><span class="p">}</span> <span class="o">-</span> <span class="p">{</span><span class="kc">None</span><span class="p">}</span>
+            <span class="n">overlap_reserved</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">duplicate_preserving_order</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span>
+                <span class="n">reserved_columns</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">overlap_reserved</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;ignore columns cannot include id/weight columns: </span><span class="si">{</span><span class="n">overlap_reserved</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="n">sample</span><span class="o">.</span><span class="n">_ignored_column_names</span> <span class="o">=</span> <span class="n">duplicate_preserving_order</span>
+
         <span class="c1"># outcome columns</span>
         <span class="k">if</span> <span class="n">outcome_columns</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">sample</span><span class="o">.</span><span class="n">_outcome_columns</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcome_columns</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
                 <span class="n">outcome_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">outcome_columns</span><span class="p">]</span>
+
+            <span class="n">overlapping_columns</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">outcome_columns</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="s2">&quot;_ignored_column_names&quot;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">overlapping_columns</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Columns cannot be both ignored and outcomes: </span><span class="si">{</span><span class="n">overlapping_columns</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">sample</span><span class="o">.</span><span class="n">_outcome_columns</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">outcome_columns</span><span class="p">]</span>
             <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
@@ -374,6 +576,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">df</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">outcomes</span><span class="p">()</span><span class="o">.</span><span class="n">df</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcomes</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">()</span><span class="o">.</span><span class="n">df</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ignored_columns</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ignored_columns</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
         <span class="p">)</span>
@@ -382,22 +585,22 @@
 <a class="viewcode-back" href="../../balance.sample_class.html#balance.sample_class.Sample.outcomes">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">outcomes</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>  <span class="c1"># -&gt; &quot;Optional[Type[BalanceOutcomesDF]]&quot; (not imported due to circular dependency)</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>  <span class="c1"># -&gt; &quot;Optional[Type[BalanceDFOutcomes]]&quot; (not imported due to circular dependency)</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Produce a BalanceOutcomeDF from a Sample object.</span>
-<span class="sd">        See :class:BalanceOutcomesDF.</span>
+<span class="sd">        See :class:BalanceDFOutcomes.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            self (Sample): Sample object.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            BalanceOutcomesDF or None</span>
+<span class="sd">            BalanceDFOutcomes or None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outcome_columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># NOTE: must import here so to avoid circular dependency</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">balance.balancedf_class</span><span class="w"> </span><span class="kn">import</span> <span class="n">BalanceOutcomesDF</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">balance.balancedf_class</span><span class="w"> </span><span class="kn">import</span> <span class="n">BalanceDFOutcomes</span>
 
-            <span class="k">return</span> <span class="n">BalanceOutcomesDF</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">BalanceDFOutcomes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span></div>
 
@@ -406,21 +609,21 @@
 <a class="viewcode-back" href="../../balance.sample_class.html#balance.sample_class.Sample.weights">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">weights</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>  <span class="c1"># -&gt; &quot;Optional[Type[BalanceWeightsDF]]&quot; (not imported due to circular dependency)</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>  <span class="c1"># -&gt; &quot;Optional[Type[BalanceDFWeights]]&quot; (not imported due to circular dependency)</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Produce a BalanceWeightsDF from a Sample object.</span>
-<span class="sd">        See :class:BalanceWeightsDF.</span>
+<span class="sd">        Produce a BalanceDFWeights from a Sample object.</span>
+<span class="sd">        See :class:BalanceDFWeights.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            self (Sample): Sample object.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            BalanceWeightsDF</span>
+<span class="sd">            BalanceDFWeights</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># NOTE: must import here so to avoid circular dependency</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">balance.balancedf_class</span><span class="w"> </span><span class="kn">import</span> <span class="n">BalanceWeightsDF</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">balance.balancedf_class</span><span class="w"> </span><span class="kn">import</span> <span class="n">BalanceDFWeights</span>
 
-        <span class="k">return</span> <span class="n">BalanceWeightsDF</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">BalanceDFWeights</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Sample.covars">
@@ -429,21 +632,50 @@
         <span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span>
         <span class="n">Any</span>
-    <span class="p">):</span>  <span class="c1"># -&gt; &quot;Optional[Type[BalanceCovarsDF]]&quot; (not imported due to circular dependency)</span>
+    <span class="p">):</span>  <span class="c1"># -&gt; &quot;Optional[Type[BalanceDFCovars]]&quot; (not imported due to circular dependency)</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Produce a BalanceCovarsDF from a Sample object.</span>
-<span class="sd">        See :class:BalanceCovarsDF.</span>
+<span class="sd">        Produce a BalanceDFCovars from a Sample object.</span>
+<span class="sd">        See :class:BalanceDFCovars.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            self (Sample): Sample object.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            BalanceCovarsDF</span>
+<span class="sd">            BalanceDFCovars</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># NOTE: must import here so to avoid circular dependency</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">balance.balancedf_class</span><span class="w"> </span><span class="kn">import</span> <span class="n">BalanceCovarsDF</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">balance.balancedf_class</span><span class="w"> </span><span class="kn">import</span> <span class="n">BalanceDFCovars</span>
 
-        <span class="k">return</span> <span class="n">BalanceCovarsDF</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">BalanceDFCovars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Sample.ignored_columns">
+<a class="viewcode-back" href="../../balance.sample_class.html#balance.sample_class.Sample.ignored_columns">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ignored_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return columns marked as ignored on the sample.</span>
+
+<span class="sd">        These columns stay on the underlying dataframe for tracking purposes</span>
+<span class="sd">        but are excluded from covariate selection and outcome statistics.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Optional[pd.DataFrame]: DataFrame of ignored columns, or None when</span>
+<span class="sd">            no ignored columns are defined.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">            &gt;&gt;&gt; df = pd.DataFrame(</span>
+<span class="sd">            ...     {&quot;id&quot;: [1, 2], &quot;note&quot;: [&quot;x&quot;, &quot;y&quot;], &quot;age&quot;: [20, 21], &quot;out&quot;: [0, 1]}</span>
+<span class="sd">            ... )</span>
+<span class="sd">            &gt;&gt;&gt; sample = Sample.from_frame(</span>
+<span class="sd">            ...     df, id_column=&quot;id&quot;, outcome_columns=&quot;out&quot;, ignore_columns=[&quot;note&quot;], weight_column=None</span>
+<span class="sd">            ... )</span>
+<span class="sd">            &gt;&gt;&gt; sample.ignored_columns().columns.tolist()</span>
+<span class="sd">            [&#39;note&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_ignored_column_names&quot;</span><span class="p">,</span> <span class="p">[]))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ignored_column_names</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="Sample.model">
@@ -505,6 +737,65 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Sample: an adjusted Sample object</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            During adjustment, the method automatically detects and warns about high-cardinality</span>
+<span class="sd">            categorical features (features where most values are unique). These features</span>
+<span class="sd">            typically don&#39;t provide meaningful signal for adjustment and may lead to</span>
+<span class="sd">            unstable or uniform weights. The warning helps identify features that should be</span>
+<span class="sd">            reviewed or excluded from the adjustment.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            ::</span>
+
+<span class="sd">                import balance</span>
+<span class="sd">                from sklearn.ensemble import RandomForestClassifier</span>
+<span class="sd">                from balance import Sample</span>
+<span class="sd">                from balance import load_data</span>
+
+<span class="sd">                # Load simulated data</span>
+<span class="sd">                target_df, sample_df = load_data()</span>
+
+<span class="sd">                sample = Sample.from_frame(sample_df, outcome_columns=[&quot;happiness&quot;])</span>
+<span class="sd">                # Often times we don&#39;y have the outcome for the target. In this case we&#39;ve added it just to validate later that the weights indeed help us reduce the bias</span>
+<span class="sd">                target = Sample.from_frame(target_df, outcome_columns=[&quot;happiness&quot;])</span>
+
+<span class="sd">                sample_with_target = sample.set_target(target)</span>
+<span class="sd">                adjusted = sample_with_target.adjust()</span>
+
+<span class="sd">                rf = RandomForestClassifier(n_estimators=200, random_state=0)</span>
+<span class="sd">                adjusted_rf = sample_with_target.adjust(model = rf)</span>
+
+<span class="sd">                # Print ASMD tables for both adjusted and adjusted_rf</span>
+<span class="sd">                print(&quot;\\n=== Adjusted ASMD ===&quot;)</span>
+<span class="sd">                print(adjusted.covars().asmd().T)</span>
+
+<span class="sd">                print(&quot;\\n=== Adjusted_RF ASMD ===&quot;)</span>
+<span class="sd">                print(adjusted_rf.covars().asmd().T)</span>
+
+<span class="sd">                # output</span>
+<span class="sd">                #</span>
+<span class="sd">                # === Adjusted ASMD ===</span>
+<span class="sd">                # source                  self  unadjusted  unadjusted - self</span>
+<span class="sd">                # age_group[T.25-34]  0.021777    0.005688          -0.016090</span>
+<span class="sd">                # age_group[T.35-44]  0.055884    0.312711           0.256827</span>
+<span class="sd">                # age_group[T.45+]    0.169816    0.378828           0.209013</span>
+<span class="sd">                # gender[Female]      0.097916    0.375699           0.277783</span>
+<span class="sd">                # gender[Male]        0.103989    0.379314           0.275324</span>
+<span class="sd">                # gender[_NA]         0.010578    0.006296          -0.004282</span>
+<span class="sd">                # income              0.205469    0.494217           0.288748</span>
+<span class="sd">                # mean(asmd)          0.119597    0.326799           0.207202</span>
+<span class="sd">                #</span>
+<span class="sd">                # === Adjusted_RF ASMD ===</span>
+<span class="sd">                # source                  self  unadjusted  unadjusted - self</span>
+<span class="sd">                # age_group[T.25-34]  0.074491    0.005688          -0.068804</span>
+<span class="sd">                # age_group[T.35-44]  0.022383    0.312711           0.290328</span>
+<span class="sd">                # age_group[T.45+]    0.145628    0.378828           0.233201</span>
+<span class="sd">                # gender[Female]      0.037700    0.375699           0.337999</span>
+<span class="sd">                # gender[Male]        0.067392    0.379314           0.311922</span>
+<span class="sd">                # gender[_NA]         0.051718    0.006296          -0.045422</span>
+<span class="sd">                # income              0.140655    0.494217           0.353562</span>
+<span class="sd">                # mean(asmd)          0.091253    0.326799           0.235546</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_no_target_error</span><span class="p">()</span>
@@ -518,11 +809,47 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Method should be one of existing weighting methods&quot;</span><span class="p">)</span>
 
+        <span class="c1"># Detect high cardinality features in both sample and target covariates</span>
+        <span class="n">sample_covars_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">df</span>
+        <span class="n">target_covars_df</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">df</span>
+
+        <span class="n">sample_high_card</span> <span class="o">=</span> <span class="n">_detect_high_cardinality_features</span><span class="p">(</span><span class="n">sample_covars_df</span><span class="p">)</span>
+        <span class="n">target_high_card</span> <span class="o">=</span> <span class="n">_detect_high_cardinality_features</span><span class="p">(</span><span class="n">target_covars_df</span><span class="p">)</span>
+
+        <span class="c1"># Merge the results, taking the maximum unique_count for each column</span>
+        <span class="n">high_cardinality_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">HighCardinalityFeature</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">sample_high_card</span> <span class="o">+</span> <span class="n">target_high_card</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">feature</span><span class="o">.</span><span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">high_cardinality_dict</span>
+                <span class="ow">or</span> <span class="n">feature</span><span class="o">.</span><span class="n">unique_count</span>
+                <span class="o">&gt;</span> <span class="n">high_cardinality_dict</span><span class="p">[</span><span class="n">feature</span><span class="o">.</span><span class="n">column</span><span class="p">]</span><span class="o">.</span><span class="n">unique_count</span>
+            <span class="p">):</span>
+                <span class="n">high_cardinality_dict</span><span class="p">[</span><span class="n">feature</span><span class="o">.</span><span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="n">feature</span>
+
+        <span class="n">high_cardinality_features</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+            <span class="n">high_cardinality_dict</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+            <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">unique_count</span><span class="p">,</span>
+            <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">high_cardinality_features</span><span class="p">:</span>
+            <span class="n">formatted_details</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">feature</span><span class="o">.</span><span class="n">column</span><span class="si">}</span><span class="s2"> (unique=</span><span class="si">{</span><span class="n">feature</span><span class="o">.</span><span class="n">unique_count</span><span class="si">}</span><span class="s2">; &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;unique_ratio=</span><span class="si">{</span><span class="n">feature</span><span class="o">.</span><span class="n">unique_ratio</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;; missing values present&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">feature</span><span class="o">.</span><span class="n">has_missing</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;)&quot;</span>
+                <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">high_cardinality_features</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;High-cardinality features detected that may not provide signal: &quot;</span>
+                <span class="o">+</span> <span class="n">formatted_details</span>
+            <span class="p">)</span>
+
         <span class="n">adjusted</span> <span class="o">=</span> <span class="n">adjustment_function</span><span class="p">(</span>
             <span class="o">*</span><span class="n">args</span><span class="p">,</span>
-            <span class="n">sample_df</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">df</span><span class="p">,</span>
+            <span class="n">sample_df</span><span class="o">=</span><span class="n">sample_covars_df</span><span class="p">,</span>
             <span class="n">sample_weights</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weight_column</span><span class="p">,</span>
-            <span class="n">target_df</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">df</span><span class="p">,</span>
+            <span class="n">target_df</span><span class="o">=</span><span class="n">target_covars_df</span><span class="p">,</span>
             <span class="n">target_weights</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">weight_column</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
         <span class="p">)</span>
@@ -842,17 +1169,59 @@
 <span class="sd">        Provides a summary of covariate balance, design effect and model properties (if applicable)</span>
 <span class="sd">        of a sample.</span>
 
+<span class="sd">        The summary consolidates high-level diagnostics that are most helpful after adjustment,</span>
+<span class="sd">        including covariate balance, weight health, outcome behavior, and basic model fit when</span>
+<span class="sd">        available.</span>
+
 <span class="sd">        For more details see: :func:`BalanceDF.asmd`, :func:`BalanceDF.asmd_improvement`</span>
 <span class="sd">        and :func:`weights_stats.design_effect`</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: a summary description of properties of an adjusted sample.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">            &gt;&gt;&gt; from balance.sample_class import Sample</span>
+<span class="sd">            &gt;&gt;&gt; survey = Sample.from_frame(</span>
+<span class="sd">            ...     pd.DataFrame(</span>
+<span class="sd">            ...         {&quot;x&quot;: (0, 1, 1, 0), &quot;id&quot;: range(4), &quot;y&quot;: (0.1, 0.5, 0.4, 0.9), &quot;w&quot;: (1, 2, 1, 1)}</span>
+<span class="sd">            ...     ),</span>
+<span class="sd">            ...     id_column=&quot;id&quot;,</span>
+<span class="sd">            ...     outcome_columns=&quot;y&quot;,</span>
+<span class="sd">            ...     weight_column=&quot;w&quot;,</span>
+<span class="sd">            ... )</span>
+<span class="sd">            &gt;&gt;&gt; target = Sample.from_frame(</span>
+<span class="sd">            ...     pd.DataFrame({&quot;x&quot;: (0, 0, 1, 1), &quot;id&quot;: range(4)}),</span>
+<span class="sd">            ...     id_column=&quot;id&quot;,</span>
+<span class="sd">            ... )</span>
+<span class="sd">            &gt;&gt;&gt; adjusted = survey.set_target(target).adjust(method=&quot;null&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; print(adjusted.summary())</span>
+<span class="sd">            Adjustment details:</span>
+<span class="sd">                method: null_adjustment</span>
+<span class="sd">            Covariate diagnostics:</span>
+<span class="sd">                Covar ASMD reduction: 0.0%</span>
+<span class="sd">                Covar ASMD (1 variables): 0.173 -&gt; 0.173</span>
+<span class="sd">                Covar mean KLD reduction: 0.0%</span>
+<span class="sd">                Covar mean KLD (1 variables): 0.020 -&gt; 0.020</span>
+<span class="sd">            Weight diagnostics:</span>
+<span class="sd">                design effect (Deff): 1.120</span>
+<span class="sd">                effective sample proportion (ESSP): 0.893</span>
+<span class="sd">                effective sample size (ESS): 3.6</span>
+<span class="sd">            Outcome weighted means:</span>
+<span class="sd">                           y</span>
+<span class="sd">            source</span>
+<span class="sd">            self       0.480</span>
+<span class="sd">            unadjusted 0.480</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Initialize variables</span>
         <span class="n">n_asmd_covars</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">asmd_before</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="n">asmd_improvement</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="n">asmd_now</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">n_kld_covars</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">kld_before</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">kld_now</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">kld_reduction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
 
         <span class="c1"># asmd</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_target</span><span class="p">():</span>
@@ -861,16 +1230,30 @@
                 <span class="n">asmd</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">asmd</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span> <span class="o">!=</span> <span class="s2">&quot;mean(asmd)&quot;</span><span class="p">]</span>
             <span class="p">)</span>
 
+            <span class="n">kld</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">kld</span><span class="p">(</span><span class="n">aggregate_by_main_covar</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">n_kld_covars</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kld</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">kld</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span> <span class="o">!=</span> <span class="s2">&quot;mean(kld)&quot;</span><span class="p">])</span>
+
         <span class="c1"># asmd improvement</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">():</span>
             <span class="n">asmd_before</span> <span class="o">=</span> <span class="n">asmd</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">&quot;unadjusted&quot;</span><span class="p">,</span> <span class="s2">&quot;mean(asmd)&quot;</span><span class="p">]</span>
             <span class="n">asmd_improvement</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">asmd_improvement</span><span class="p">()</span>
+            <span class="n">kld_before</span> <span class="o">=</span> <span class="n">kld</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">&quot;unadjusted&quot;</span><span class="p">,</span> <span class="s2">&quot;mean(kld)&quot;</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_target</span><span class="p">():</span>
             <span class="n">asmd_now</span> <span class="o">=</span> <span class="n">asmd</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">&quot;self&quot;</span><span class="p">,</span> <span class="s2">&quot;mean(asmd)&quot;</span><span class="p">]</span>
+            <span class="n">kld_now</span> <span class="o">=</span> <span class="n">kld</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">&quot;self&quot;</span><span class="p">,</span> <span class="s2">&quot;mean(kld)&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span> <span class="ow">and</span> <span class="n">kld_before</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">kld_reduction</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="p">(</span><span class="n">kld_before</span> <span class="o">-</span> <span class="n">kld_now</span><span class="p">)</span> <span class="o">/</span> <span class="n">kld_before</span>
 
-        <span class="c1"># design effect</span>
-        <span class="n">design_effect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_effect</span><span class="p">()</span>
+        <span class="c1"># quick, lightweight adjustment details reused with __str__</span>
+        <span class="n">quick_adjustment_details</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">():</span>
+            <span class="n">quick_adjustment_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_quick_adjustment_details</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># design effect and effective sample diagnostics</span>
+        <span class="n">design_effect</span><span class="p">,</span> <span class="n">effective_sample_size</span><span class="p">,</span> <span class="n">effective_sample_proportion</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_design_effect_diagnostics</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="p">)</span>
 
         <span class="c1"># model performance</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -890,22 +1273,65 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">model_summary</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="n">out</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Covar ASMD reduction: </span><span class="si">{</span><span class="n">asmd_improvement</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%, design effect: </span><span class="si">{</span><span class="n">design_effect</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span>
-                <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">sections</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">adjustment_lines</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">quick_adjustment_details</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">d</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;design effect&quot;</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="n">adjustment_lines</span><span class="p">:</span>
+            <span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">&quot;Adjustment details:</span><span class="se">\n</span><span class="s2">    &quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">    &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">adjustment_lines</span><span class="p">)</span>
             <span class="p">)</span>
-            <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Covar ASMD (</span><span class="si">{</span><span class="n">n_asmd_covars</span><span class="si">}</span><span class="s2"> variables): &quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_target</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-            <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">asmd_before</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> -&gt; &quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-            <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">asmd_now</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_target</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-            <span class="o">+</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Model performance: </span><span class="si">{</span><span class="n">model_summary</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="k">if</span> <span class="p">(</span><span class="n">model_summary</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
-                <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="n">covar_lines</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_target</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">():</span>
+                <span class="n">covar_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Covar ASMD reduction: </span><span class="si">{</span><span class="n">asmd_improvement</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">)</span>
+            <span class="n">covar_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Covar ASMD (</span><span class="si">{</span><span class="n">n_asmd_covars</span><span class="si">}</span><span class="s2"> variables): &quot;</span>
+                <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">asmd_before</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> -&gt; &quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">asmd_now</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">out</span></div>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span> <span class="ow">and</span> <span class="n">kld_before</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">covar_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Covar mean KLD reduction: </span><span class="si">{</span><span class="n">kld_reduction</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">)</span>
+            <span class="n">covar_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Covar mean KLD (</span><span class="si">{</span><span class="n">n_kld_covars</span><span class="si">}</span><span class="s2"> variables): &quot;</span>
+                <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">kld_before</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> -&gt; &quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">kld_now</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">covar_lines</span><span class="p">:</span>
+            <span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Covariate diagnostics:</span><span class="se">\n</span><span class="s2">    &quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">    &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">covar_lines</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_adjusted</span><span class="p">():</span>
+            <span class="n">weights_lines</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="n">design_effect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">weights_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;design effect (Deff): </span><span class="si">{</span><span class="n">design_effect</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">effective_sample_proportion</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">weights_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;effective sample size proportion (ESSP): </span><span class="si">{</span><span class="n">effective_sample_proportion</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                <span class="k">if</span> <span class="n">effective_sample_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">weights_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;effective sample size (ESS): </span><span class="si">{</span><span class="n">effective_sample_size</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">weights_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;design effect (Deff): unavailable&quot;</span><span class="p">)</span>
+
+            <span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Weight diagnostics:</span><span class="se">\n</span><span class="s2">    &quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">    &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">weights_lines</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outcome_columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">outcome_means</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcomes</span><span class="p">()</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">&quot;Outcome weighted means:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="o">+</span> <span class="n">outcome_means</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">float_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">model_summary</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model performance: </span><span class="si">{</span><span class="n">model_summary</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">sections</span><span class="p">))</span></div>
 
 
 <div class="viewcode-block" id="Sample.diagnostics">
@@ -1044,49 +1470,99 @@
             <span class="p">)</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">model</span><span class="p">[</span><span class="s2">&quot;method&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ipw&quot;</span><span class="p">:</span>
-            <span class="c1">#  Attributes of LogisticRegression class</span>
-            <span class="n">fit_list</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model</span><span class="p">[</span><span class="s2">&quot;fit&quot;</span><span class="p">]</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="n">v</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,):</span>
-                    <span class="n">fit_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-                        <span class="p">[</span>
-                            <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
-                                <span class="p">{</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;ipw_model_glance&quot;</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="n">v</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">k</span><span class="p">}</span>
-                            <span class="p">)</span>
-                        <span class="p">]</span>
-                    <span class="p">)</span>
-                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
-                    <span class="n">fit_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-                        <span class="p">[</span>
-                            <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
-                                <span class="p">{</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;model_glance&quot;</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">k</span><span class="p">}</span>
-                            <span class="p">)</span>
-                        <span class="p">]</span>
-                    <span class="p">)</span>
-                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                    <span class="n">fit_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-                        <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;ipw_&quot;</span> <span class="o">+</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">v</span><span class="p">})]</span>
+            <span class="n">fit</span> <span class="o">=</span> <span class="n">model</span><span class="p">[</span><span class="s2">&quot;fit&quot;</span><span class="p">]</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="n">fit_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c1"># TODO: Move this function to utils.py, add docstring, and tests.</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">_coerce_scalar</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+                        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+
+            <span class="c1"># TODO: add tests checking these values</span>
+            <span class="k">for</span> <span class="n">array_key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;n_iter_&quot;</span><span class="p">,</span> <span class="s2">&quot;intercept_&quot;</span><span class="p">):</span>
+                <span class="n">array_val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="n">array_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">array_val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="n">array_val</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,):</span>
+                    <span class="n">fit_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                            <span class="p">{</span>
+                                <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;ipw_model_glance&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="n">array_val</span><span class="p">,</span>
+                                <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">array_key</span><span class="p">,</span>
+                            <span class="p">}</span>
+                        <span class="p">)</span>
                     <span class="p">)</span>
 
+            <span class="c1"># TODO: add tests checking these values</span>
+            <span class="k">for</span> <span class="n">param_key</span><span class="p">,</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="p">(</span><span class="s2">&quot;penalty&quot;</span><span class="p">,</span> <span class="s2">&quot;ipw_penalty&quot;</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;solver&quot;</span><span class="p">,</span> <span class="s2">&quot;ipw_solver&quot;</span><span class="p">),</span>
+            <span class="p">):</span>
+                <span class="n">param_val</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">param_key</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="n">param_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param_val</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="n">fit_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                            <span class="p">{</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="n">metric_name</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">param_val</span><span class="p">}</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">scalar_key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;tol&quot;</span><span class="p">,</span> <span class="s2">&quot;l1_ratio&quot;</span><span class="p">):</span>
+                <span class="n">scalar_value</span> <span class="o">=</span> <span class="n">_coerce_scalar</span><span class="p">(</span>
+                    <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">scalar_key</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="n">scalar_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+                <span class="p">)</span>
+                <span class="n">fit_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;model_glance&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">scalar_value</span><span class="p">,),</span>
+                            <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">scalar_key</span><span class="p">,</span>
+                        <span class="p">}</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="c1"># TODO: add tests checking these values</span>
+            <span class="n">multi_class</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;multi_class&quot;</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="s2">&quot;multi_class&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">multi_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">multi_class</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">multi_class</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">multi_class</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">multi_class</span><span class="p">)</span>
+
+            <span class="n">fit_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;ipw_multi_class&quot;</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">multi_class</span><span class="p">}</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fit_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">fit_single_values</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">fit_list</span><span class="p">)</span>
+                <span class="n">fit_single_values</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">fit_list</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">fit_single_values</span> <span class="o">=</span> <span class="n">fit_single_values</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span>
+                    <span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;metric&quot;</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">],</span> <span class="n">keep</span><span class="o">=</span><span class="s2">&quot;first&quot;</span>
+                <span class="p">)</span>
                 <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">diagnostics</span><span class="p">,</span> <span class="n">fit_single_values</span><span class="p">))</span>
 
             <span class="c1">#  Extract info about the regularisation parameter</span>
+            <span class="n">lambda_value</span> <span class="o">=</span> <span class="n">_coerce_scalar</span><span class="p">(</span><span class="n">model</span><span class="p">[</span><span class="s2">&quot;lambda&quot;</span><span class="p">])</span>
             <span class="n">lambda_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
-                <span class="p">{</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;model_glance&quot;</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">model</span><span class="p">[</span><span class="s2">&quot;lambda&quot;</span><span class="p">],),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="s2">&quot;lambda&quot;</span><span class="p">}</span>
+                <span class="p">{</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;model_glance&quot;</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">lambda_value</span><span class="p">,),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="s2">&quot;lambda&quot;</span><span class="p">}</span>
             <span class="p">)</span>
             <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">diagnostics</span><span class="p">,</span> <span class="n">lambda_df</span><span class="p">))</span>
 
             <span class="c1">#  Scalar values from &#39;perf&#39; key of dictionary</span>
-            <span class="n">perf_single_values</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
-                <span class="p">[</span>
-                    <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;model_glance&quot;</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">k</span><span class="p">})</span>
-                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model</span><span class="p">[</span><span class="s2">&quot;perf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
-                <span class="p">]</span>
-            <span class="p">)</span>
-            <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">diagnostics</span><span class="p">,</span> <span class="n">perf_single_values</span><span class="p">))</span>
+            <span class="n">perf_entries</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;model_glance&quot;</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">),),</span> <span class="s2">&quot;var&quot;</span><span class="p">:</span> <span class="n">k</span><span class="p">})</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model</span><span class="p">[</span><span class="s2">&quot;perf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="ow">and</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;coefs&quot;</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">perf_entries</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">perf_single_values</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">perf_entries</span><span class="p">)</span>
+                <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">diagnostics</span><span class="p">,</span> <span class="n">perf_single_values</span><span class="p">))</span>
 
             <span class="c1"># Model coefficients</span>
             <span class="n">coefs</span> <span class="o">=</span> <span class="p">(</span>
@@ -1317,9 +1793,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            str | None: If path_or_buf is None, returns the resulting csv format as a string. Otherwise returns None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="s2">&quot;index&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path_or_buf</span><span class="o">=</span><span class="n">path_or_buf</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">to_csv_with_defaults</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="p">,</span> <span class="n">path_or_buf</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
     <span class="c1">################################################################################</span>
@@ -1332,19 +1806,22 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_special_columns_names</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns names of all special columns (id column,</span>
-<span class="sd">        wegiht column and outcome columns) in Sample.</span>
+<span class="sd">        weight column, outcome columns, and ignored columns) in Sample.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            List[str]: names of special columns</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="n">i</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">id_column</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_column</span><span class="p">]</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-        <span class="p">]</span> <span class="o">+</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_outcome_columns</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outcome_columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">id_column</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_column</span><span class="p">]</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_outcome_columns</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outcome_columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="p">[]</span>
+            <span class="p">)</span>
+            <span class="o">+</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_ignored_column_names&quot;</span><span class="p">,</span> <span class="p">[])</span>
         <span class="p">)</span>
 
+    <span class="c1"># TODO: _special_columns is just like df. Unclear if we need both or not, and why.</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_special_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;Sample&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns dataframe of all special columns (id column,</span>

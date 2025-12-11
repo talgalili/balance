@@ -45,33 +45,6 @@
   <section id="module-balance.balancedf_class">
 <span id="balance-balancedf-class"></span><h1>balance.balancedf_class<a class="headerlink" href="#module-balance.balancedf_class" title="Link to this heading">¶</a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceCovarsDF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">balance.balancedf_class.</span></span><span class="sig-name descname"><span class="pre">BalanceCovarsDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="balance.sample_class.html#balance.sample_class.Sample" title="balance.sample_class.Sample"><span class="pre">Sample</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceCovarsDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceCovarsDF" title="Link to this definition">¶</a></dt>
-<dd><dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceCovarsDF.from_frame">
-<span class="sig-name descname"><span class="pre">from_frame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pd.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pd.Series</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#balance.balancedf_class.BalanceCovarsDF" title="balance.balancedf_class.BalanceCovarsDF"><span class="pre">BalanceCovarsDF</span></a></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceCovarsDF.from_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceCovarsDF.from_frame" title="Link to this definition">¶</a></dt>
-<dd><p>A factory function to create a BalanceCovarsDF from a df.</p>
-<p>Although generally the main way the object is created is through the __init__ method.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceCovarsDF" title="balance.balancedf_class.BalanceCovarsDF"><em>BalanceCovarsDF</em></a>) – Object</p></li>
-<li><p><strong>df</strong> (<em>pd.DataFrame</em>) – A df.</p></li>
-<li><p><strong>weights</strong> (<em>Optional</em><em>[</em><em>pd.Series</em><em>]</em><em>, </em><em>optional</em>) – _description_. Defaults to None.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Object.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="#balance.balancedf_class.BalanceCovarsDF" title="balance.balancedf_class.BalanceCovarsDF">BalanceCovarsDF</a></p>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">balance.balancedf_class.</span></span><span class="sig-name descname"><span class="pre">BalanceDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="balance.sample_class.html#balance.sample_class.Sample" title="balance.sample_class.Sample"><span class="pre">Sample</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'outcomes'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'weights'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'covars'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDF" title="Link to this definition">¶</a></dt>
 <dd><p>Wrapper class around a Sample which provides additional balance-specific functionality</p>
@@ -92,7 +65,7 @@ If None then it looks for a target in the self linked objects. Defaults to None.
 <li><p><strong>aggregate_by_main_covar</strong> (<em>bool</em><em>, </em><em>optional</em>) – Defaults to False.
 If True, it will make sure to return the asmd DataFrame after averaging
 all the columns from using the one-hot encoding for categorical variables.
-See ::_aggregate_asmd_by_main_covar:: for more details.</p></li>
+See ::_aggregate_statistic_by_main_covar:: for more details.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
@@ -377,6 +350,82 @@ print(s3_null_2.outcomes().ci_of_mean(round_ndigits = 3))</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF.kld">
+<span class="sig-name descname"><span class="pre">kld</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'BalanceDF'</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aggregate_by_main_covar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pd.DataFrame</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDF.kld"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDF.kld" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate KL divergence (KLD) to measure distributional differences between samples and target.</p>
+<p>KLD is the Kullback-Leibler divergence, an asymmetric measure of how one probability distribution
+differs from a reference distribution. Unlike ASMD which measures standardized mean differences,
+KLD captures differences in the entire distribution shape.</p>
+<p>We can use kld to compare multiple Samples (with and without adjustment) to a target population.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDF" title="balance.balancedf_class.BalanceDF"><em>BalanceDF</em></a>) – Object from sample (with/without adjustment, but it needs some target)</p></li>
+<li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – If to compare also to linked sample objects (specifically: unadjusted), or not. Defaults to True.
+If True, then uses <code class="xref py py-func docutils literal notranslate"><span class="pre">_call_on_linked()</span></code> with method “kld”.
+If False, then uses <code class="xref py py-func docutils literal notranslate"><span class="pre">_kld_BalanceDF()</span></code> directly.</p></li>
+<li><p><strong>target</strong> (<em>Optional</em><em>[</em><em>&quot;BalanceDF&quot;</em><em>]</em><em>, </em><em>optional</em>) – A BalanceDF (of the same type as the one used in self) to compare against.
+If None then it looks for a target in the self linked objects. Defaults to None.</p></li>
+<li><p><strong>aggregate_by_main_covar</strong> (<em>bool</em><em>, </em><em>optional</em>) – Defaults to False.
+If True, it will make sure to return the kld DataFrame after averaging
+all the columns from using the one-hot encoding for categorical variables.
+See <code class="xref py py-func docutils literal notranslate"><span class="pre">_aggregate_statistic_by_main_covar()</span></code> for more details.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If self has no target and no target is supplied.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>If on_linked_samples is False, then only one row (index name depends on BalanceDF type, e.g.: covars), with kld of self vs the target.
+If on_linked_samples is True, then two rows per source (self, unadjusted), each with the kld compared to target, and a third row for the difference (self-unadjusted).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>pd.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">balance.sample_class</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sample</span>
+
+<span class="c1"># Create a simple example with numeric and categorical variables</span>
+<span class="n">sample</span> <span class="o">=</span> <span class="n">Sample</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span>
+    <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+            <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+            <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;w&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="p">}</span>
+    <span class="p">),</span>
+    <span class="n">id_column</span><span class="o">=</span><span class="s2">&quot;id&quot;</span><span class="p">,</span>
+    <span class="n">weight_column</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">target</span> <span class="o">=</span> <span class="n">Sample</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span>
+    <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+            <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+            <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;w&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="p">}</span>
+    <span class="p">),</span>
+    <span class="n">id_column</span><span class="o">=</span><span class="s2">&quot;id&quot;</span><span class="p">,</span>
+    <span class="n">weight_column</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">sample_with_target</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">set_target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+<span class="c1"># Compare only self to target without linked samples</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sample_with_target</span><span class="o">.</span><span class="n">covars</span><span class="p">()</span><span class="o">.</span><span class="n">kld</span><span class="p">(</span><span class="n">on_linked_samples</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">6</span><span class="p">))</span>
+    <span class="c1">#            a     c[x]     c[y]  c[z]  mean(kld)</span>
+    <span class="c1"># index</span>
+    <span class="c1"># covars   0.0  0.143841  0.130812   0.0   0.045776</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="balance.balancedf_class.BalanceDF.mean">
 <span class="sig-name descname"><span class="pre">mean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDF.mean"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDF.mean" title="Link to this definition">¶</a></dt>
 <dd><p>Calculates a weighted mean on the df of the BalanceDF object.</p>
@@ -616,8 +665,8 @@ s_o2 = s_o.set_target(t_o)</p>
 <dd><p>Plots the variables in the df of the BalanceDF object.</p>
 <p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">weighted_comparisons_plots.plot_dist()</span></code> for details of various arguments that can be passed.
 The default plotting engine is plotly, but seaborn can be used for static plots.</p>
-<p>This function is inherited as is when invoking BalanceCovarsDF.plot, but some modifications are made when
-preparing the data for BalanceOutcomesDF.plot and BalanceWeightsDF.plot.</p>
+<p>This function is inherited as is when invoking BalanceDFCovars.plot, but some modifications are made when
+preparing the data for BalanceDFOutcomes.plot and BalanceDFWeights.plot.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -908,17 +957,44 @@ s3_null = s3.adjust(method=”null”)</p>
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceOutcomesDF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">balance.balancedf_class.</span></span><span class="sig-name descname"><span class="pre">BalanceOutcomesDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="balance.sample_class.html#balance.sample_class.Sample" title="balance.sample_class.Sample"><span class="pre">Sample</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceOutcomesDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceOutcomesDF" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFCovars">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">balance.balancedf_class.</span></span><span class="sig-name descname"><span class="pre">BalanceDFCovars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="balance.sample_class.html#balance.sample_class.Sample" title="balance.sample_class.Sample"><span class="pre">Sample</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFCovars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFCovars" title="Link to this definition">¶</a></dt>
 <dd><dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceOutcomesDF.relative_response_rates">
-<span class="sig-name descname"><span class="pre">relative_response_rates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">pd.DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">per_column</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pd.DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceOutcomesDF.relative_response_rates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceOutcomesDF.relative_response_rates" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFCovars.from_frame">
+<span class="sig-name descname"><span class="pre">from_frame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pd.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pd.Series</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#balance.balancedf_class.BalanceDFCovars" title="balance.balancedf_class.BalanceDFCovars"><span class="pre">BalanceDFCovars</span></a></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFCovars.from_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFCovars.from_frame" title="Link to this definition">¶</a></dt>
+<dd><p>A factory function to create a BalanceDFCovars from a df.</p>
+<p>Although generally the main way the object is created is through the __init__ method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFCovars" title="balance.balancedf_class.BalanceDFCovars"><em>BalanceDFCovars</em></a>) – Object</p></li>
+<li><p><strong>df</strong> (<em>pd.DataFrame</em>) – A df.</p></li>
+<li><p><strong>weights</strong> (<em>Optional</em><em>[</em><em>pd.Series</em><em>]</em><em>, </em><em>optional</em>) – _description_. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Object.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#balance.balancedf_class.BalanceDFCovars" title="balance.balancedf_class.BalanceDFCovars">BalanceDFCovars</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFOutcomes">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">balance.balancedf_class.</span></span><span class="sig-name descname"><span class="pre">BalanceDFOutcomes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="balance.sample_class.html#balance.sample_class.Sample" title="balance.sample_class.Sample"><span class="pre">Sample</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFOutcomes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFOutcomes" title="Link to this definition">¶</a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFOutcomes.relative_response_rates">
+<span class="sig-name descname"><span class="pre">relative_response_rates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">pd.DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">per_column</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pd.DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFOutcomes.relative_response_rates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFOutcomes.relative_response_rates" title="Link to this definition">¶</a></dt>
 <dd><p>Produces a summary table of number of responses and proportion of completed responses.</p>
 <p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">general_stats.relative_response_rates()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF" title="balance.balancedf_class.BalanceOutcomesDF"><em>BalanceOutcomesDF</em></a>) – Object</p></li>
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFOutcomes" title="balance.balancedf_class.BalanceDFOutcomes"><em>BalanceDFOutcomes</em></a>) – Object</p></li>
 <li><p><strong>target</strong> (<em>Union</em><em>[</em><em>bool</em><em>, </em><em>pd.DataFrame</em><em>]</em><em>, </em><em>optional</em>) – <p>Defaults to False.
 Determines what is passed to df_target in <code class="xref py py-func docutils literal notranslate"><span class="pre">general_stats.relative_response_rates()</span></code>
 If False: passes None.
@@ -1005,13 +1081,13 @@ A second row with the proportion of non-null observations.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceOutcomesDF.summary">
-<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceOutcomesDF.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceOutcomesDF.summary" title="Link to this definition">¶</a></dt>
-<dd><p>Produces summary printable string of a BalanceOutcomesDF object.</p>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFOutcomes.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFOutcomes.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFOutcomes.summary" title="Link to this definition">¶</a></dt>
+<dd><p>Produces summary printable string of a BalanceDFOutcomes object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF" title="balance.balancedf_class.BalanceOutcomesDF"><em>BalanceOutcomesDF</em></a>) – Object.</p></li>
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFOutcomes" title="balance.balancedf_class.BalanceDFOutcomes"><em>BalanceDFOutcomes</em></a>) – Object.</p></li>
 <li><p><strong>on_linked_samples</strong> (<em>Optional</em><em>[</em><em>bool</em><em>]</em>) – Ignored. Only here since summary overrides BalanceDF.summary.</p></li>
 </ul>
 </dd>
@@ -1087,13 +1163,13 @@ A second row with the proportion of non-null observations.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceOutcomesDF.target_response_rates">
-<span class="sig-name descname"><span class="pre">target_response_rates</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pd.DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceOutcomesDF.target_response_rates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceOutcomesDF.target_response_rates" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFOutcomes.target_response_rates">
+<span class="sig-name descname"><span class="pre">target_response_rates</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pd.DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFOutcomes.target_response_rates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFOutcomes.target_response_rates" title="Link to this definition">¶</a></dt>
 <dd><p>Calculates relative_response_rates for the target in a Sample object.</p>
 <p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">general_stats.relative_response_rates()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF" title="balance.balancedf_class.BalanceOutcomesDF"><em>BalanceOutcomesDF</em></a>) – Object (with/without a target set)</p>
+<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFOutcomes" title="balance.balancedf_class.BalanceDFOutcomes"><em>BalanceDFOutcomes</em></a>) – Object (with/without a target set)</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><dl class="simple">
@@ -1143,17 +1219,17 @@ A second row with the proportion of non-null observations.</p>
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceWeightsDF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">balance.balancedf_class.</span></span><span class="sig-name descname"><span class="pre">BalanceWeightsDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="balance.sample_class.html#balance.sample_class.Sample" title="balance.sample_class.Sample"><span class="pre">Sample</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceWeightsDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceWeightsDF" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFWeights">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">balance.balancedf_class.</span></span><span class="sig-name descname"><span class="pre">BalanceDFWeights</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="balance.sample_class.html#balance.sample_class.Sample" title="balance.sample_class.Sample"><span class="pre">Sample</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFWeights"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFWeights" title="Link to this definition">¶</a></dt>
 <dd><dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceWeightsDF.design_effect">
-<span class="sig-name descname"><span class="pre">design_effect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float64</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceWeightsDF.design_effect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceWeightsDF.design_effect" title="Link to this definition">¶</a></dt>
-<dd><p>Calculates Kish’s design effect (deff) on the BalanceWeightsDF weights.</p>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFWeights.design_effect">
+<span class="sig-name descname"><span class="pre">design_effect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float64</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFWeights.design_effect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFWeights.design_effect" title="Link to this definition">¶</a></dt>
+<dd><p>Calculates Kish’s design effect (deff) on the BalanceDFWeights weights.</p>
 <p>Extract the first column to get a pd.Series of the weights.</p>
 <p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">weights_stats.design_effect()</span></code> for details.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF" title="balance.balancedf_class.BalanceWeightsDF"><em>BalanceWeightsDF</em></a>) – Object.</p>
+<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights" title="balance.balancedf_class.BalanceDFWeights"><em>BalanceDFWeights</em></a>) – Object.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Deff.</p>
@@ -1165,15 +1241,15 @@ A second row with the proportion of non-null observations.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceWeightsDF.plot">
-<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">npt.NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Figure</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceWeightsDF.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceWeightsDF.plot" title="Link to this definition">¶</a></dt>
-<dd><p>Plots kde (kernal density estimation) of the weights in a BalanceWeightsDF object using seaborn (as default).</p>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFWeights.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">npt.NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Figure</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFWeights.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFWeights.plot" title="Link to this definition">¶</a></dt>
+<dd><p>Plots kde (kernal density estimation) of the weights in a BalanceDFWeights object using seaborn (as default).</p>
 <p>It’s possible to use other plots using dist_type with arguments such as “hist”, “kde” (default), “qq”, and “ecdf”.
 Look at <code class="xref py py-func docutils literal notranslate"><span class="pre">plot_dist()</span></code> for more details.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF" title="balance.balancedf_class.BalanceWeightsDF"><em>BalanceWeightsDF</em></a>) – a BalanceOutcomesDF object, with a set of variables.</p></li>
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights" title="balance.balancedf_class.BalanceDFWeights"><em>BalanceDFWeights</em></a>) – a BalanceDFOutcomes object, with a set of variables.</p></li>
 <li><p><strong>on_linked_samples</strong> (<em>bool</em><em>, </em><em>optional</em>) – Determines if the linked samples should be included in the plot.
 Defaults to True.</p></li>
 </ul>
@@ -1226,15 +1302,15 @@ If library=”seaborn” then returns None, unless return_axes is True. Then eit
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceWeightsDF.summary">
-<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pd.DataFrame</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceWeightsDF.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceWeightsDF.summary" title="Link to this definition">¶</a></dt>
-<dd><p>Generates a summary of a BalanceWeightsDF object.</p>
-<p>This function provides a comprehensive overview of the BalanceWeightsDF object
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFWeights.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on_linked_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pd.DataFrame</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFWeights.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFWeights.summary" title="Link to this definition">¶</a></dt>
+<dd><p>Generates a summary of a BalanceDFWeights object.</p>
+<p>This function provides a comprehensive overview of the BalanceDFWeights object
 by calculating and returning a range of weight diagnostics.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF" title="balance.balancedf_class.BalanceWeightsDF"><em>BalanceWeightsDF</em></a>) – The BalanceWeightsDF object to be summarized.</p></li>
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights" title="balance.balancedf_class.BalanceDFWeights"><em>BalanceDFWeights</em></a>) – The BalanceDFWeights object to be summarized.</p></li>
 <li><p><strong>on_linked_samples</strong> (<em>Optional</em><em>[</em><em>bool</em><em>]</em><em>, </em><em>optional</em>) – This parameter is ignored. It is only included
 because summary overrides BalanceDF.summary. Defaults to None.</p></li>
 </ul>
@@ -1306,14 +1382,14 @@ from describe, ‘nonparametric_skew’, and ‘weighted_median_breakdown_point�
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="balance.balancedf_class.BalanceWeightsDF.trim">
-<span class="sig-name descname"><span class="pre">trim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ratio</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">percentile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_sum_of_weights</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceWeightsDF.trim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceWeightsDF.trim" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="balance.balancedf_class.BalanceDFWeights.trim">
+<span class="sig-name descname"><span class="pre">trim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ratio</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">percentile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_sum_of_weights</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/balance/balancedf_class.html#BalanceDFWeights.trim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#balance.balancedf_class.BalanceDFWeights.trim" title="Link to this definition">¶</a></dt>
 <dd><p>Trim weights in the sample object.</p>
 <p>Uses <code class="xref py py-func docutils literal notranslate"><span class="pre">adjustments.trim_weights()</span></code> for the weights trimming.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF" title="balance.balancedf_class.BalanceWeightsDF"><em>BalanceWeightsDF</em></a>) – Object.</p></li>
+<li><p><strong>self</strong> (<a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights" title="balance.balancedf_class.BalanceDFWeights"><em>BalanceDFWeights</em></a>) – Object.</p></li>
 <li><p><strong>ratio</strong> (<em>Optional</em><em>[</em><em>Union</em><em>[</em><em>float</em><em>, </em><em>int</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Maps to weight_trimming_mean_ratio. Defaults to None.</p></li>
 <li><p><strong>percentile</strong> (<em>Optional</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – Maps to weight_trimming_percentile. Defaults to None.</p></li>
 <li><p><strong>keep_sum_of_weights</strong> (<em>bool</em><em>, </em><em>optional</em>) – Maps to weight_trimming_percentile. Defaults to True.</p></li>
@@ -1340,15 +1416,12 @@ from describe, ‘nonparametric_skew’, and ‘weighted_median_breakdown_point�
     <h3><a href="index.html">Table of Contents</a></h3>
     <ul>
 <li><a class="reference internal" href="#">balance.balancedf_class</a><ul>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceCovarsDF"><code class="docutils literal notranslate"><span class="pre">BalanceCovarsDF</span></code></a><ul>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceCovarsDF.from_frame"><code class="docutils literal notranslate"><span class="pre">BalanceCovarsDF.from_frame()</span></code></a></li>
-</ul>
-</li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF"><code class="docutils literal notranslate"><span class="pre">BalanceDF</span></code></a><ul>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.asmd"><code class="docutils literal notranslate"><span class="pre">BalanceDF.asmd()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.asmd_improvement"><code class="docutils literal notranslate"><span class="pre">BalanceDF.asmd_improvement()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.ci_of_mean"><code class="docutils literal notranslate"><span class="pre">BalanceDF.ci_of_mean()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.df"><code class="docutils literal notranslate"><span class="pre">BalanceDF.df</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.kld"><code class="docutils literal notranslate"><span class="pre">BalanceDF.kld()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean"><code class="docutils literal notranslate"><span class="pre">BalanceDF.mean()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.mean_with_ci"><code class="docutils literal notranslate"><span class="pre">BalanceDF.mean_with_ci()</span></code></a></li>
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.model_matrix"><code class="docutils literal notranslate"><span class="pre">BalanceDF.model_matrix()</span></code></a></li>
@@ -1361,17 +1434,21 @@ from describe, ‘nonparametric_skew’, and ‘weighted_median_breakdown_point�
 <li><a class="reference internal" href="#balance.balancedf_class.BalanceDF.var_of_mean"><code class="docutils literal notranslate"><span class="pre">BalanceDF.var_of_mean()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF"><code class="docutils literal notranslate"><span class="pre">BalanceOutcomesDF</span></code></a><ul>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF.relative_response_rates"><code class="docutils literal notranslate"><span class="pre">BalanceOutcomesDF.relative_response_rates()</span></code></a></li>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF.summary"><code class="docutils literal notranslate"><span class="pre">BalanceOutcomesDF.summary()</span></code></a></li>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceOutcomesDF.target_response_rates"><code class="docutils literal notranslate"><span class="pre">BalanceOutcomesDF.target_response_rates()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFCovars"><code class="docutils literal notranslate"><span class="pre">BalanceDFCovars</span></code></a><ul>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFCovars.from_frame"><code class="docutils literal notranslate"><span class="pre">BalanceDFCovars.from_frame()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF"><code class="docutils literal notranslate"><span class="pre">BalanceWeightsDF</span></code></a><ul>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF.design_effect"><code class="docutils literal notranslate"><span class="pre">BalanceWeightsDF.design_effect()</span></code></a></li>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF.plot"><code class="docutils literal notranslate"><span class="pre">BalanceWeightsDF.plot()</span></code></a></li>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF.summary"><code class="docutils literal notranslate"><span class="pre">BalanceWeightsDF.summary()</span></code></a></li>
-<li><a class="reference internal" href="#balance.balancedf_class.BalanceWeightsDF.trim"><code class="docutils literal notranslate"><span class="pre">BalanceWeightsDF.trim()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFOutcomes"><code class="docutils literal notranslate"><span class="pre">BalanceDFOutcomes</span></code></a><ul>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFOutcomes.relative_response_rates"><code class="docutils literal notranslate"><span class="pre">BalanceDFOutcomes.relative_response_rates()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFOutcomes.summary"><code class="docutils literal notranslate"><span class="pre">BalanceDFOutcomes.summary()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFOutcomes.target_response_rates"><code class="docutils literal notranslate"><span class="pre">BalanceDFOutcomes.target_response_rates()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights"><code class="docutils literal notranslate"><span class="pre">BalanceDFWeights</span></code></a><ul>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights.design_effect"><code class="docutils literal notranslate"><span class="pre">BalanceDFWeights.design_effect()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights.plot"><code class="docutils literal notranslate"><span class="pre">BalanceDFWeights.plot()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights.summary"><code class="docutils literal notranslate"><span class="pre">BalanceDFWeights.summary()</span></code></a></li>
+<li><a class="reference internal" href="#balance.balancedf_class.BalanceDFWeights.trim"><code class="docutils literal notranslate"><span class="pre">BalanceDFWeights.trim()</span></code></a></li>
 </ul>
 </li>
 </ul>
