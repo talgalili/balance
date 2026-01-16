@@ -45,16 +45,15 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">npt</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.stats_and_plots.weights_stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">_check_weights_are_valid</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">model_matrix</span><span class="p">,</span> <span class="n">rm_mutual_nas</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">balance.utils.input_validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_verify_value_type</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">norm</span>
-
 <span class="kn">from</span><span class="w"> </span><span class="nn">statsmodels.stats.weightstats</span><span class="w"> </span><span class="kn">import</span> <span class="n">DescrStatsW</span>
 
 <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__package__</span><span class="p">)</span>
@@ -177,7 +176,7 @@
 <span class="sd">            If w has Inf then the output will be np.nan.</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        ::</span>
+<span class="sd">    .. code-block:: python</span>
 <span class="sd">            from balance.stats_and_plots.weighted_stats import weighted_mean</span>
 
 <span class="sd">            weighted_mean(pd.Series((1, 2, 3, 4)))</span>
@@ -230,7 +229,8 @@
 
 
 <span class="sd">    Examples:</span>
-<span class="sd">        ::</span>
+<span class="sd">    .. code-block:: python</span>
+
 <span class="sd">            from balance.stats_and_plots.weighted_stats import var_of_weighted_mean</span>
 
 <span class="sd">            #  In R: sum((1:4 - mean(1:4))^2 / 4) / (4)</span>
@@ -290,7 +290,8 @@
 <span class="sd">            If `w` has infinite values, the output will be `np.nan`.</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        ::</span>
+<span class="sd">    .. code-block:: python</span>
+
 <span class="sd">            from balance.stats_and_plots.weighted_stats import ci_of_weighted_mean</span>
 
 <span class="sd">            ci_of_weighted_mean(pd.Series((1, 2, 3, 4)))</span>
@@ -381,6 +382,14 @@
 <span class="sd">        If inf_rm=False then:</span>
 <span class="sd">            If v has Inf then the output will be Inf.</span>
 <span class="sd">            If w has Inf then the output will be np.nan.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import pandas as pd</span>
+<span class="sd">        from balance.stats_and_plots.weighted_stats import weighted_var</span>
+<span class="sd">        weighted_var(pd.DataFrame({&quot;x&quot;: [1, 2, 3]}), [1, 1, 1]).tolist()</span>
+<span class="sd">        # [1.0]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">v</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">_prepare_weighted_stat_args</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">inf_rm</span><span class="p">)</span>
     <span class="n">means</span> <span class="o">=</span> <span class="n">weighted_mean</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
@@ -412,6 +421,14 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        pd.Series: np.sqrt of :func:`weighted_var` (np.float64)</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import pandas as pd</span>
+<span class="sd">        from balance.stats_and_plots.weighted_stats import weighted_sd</span>
+<span class="sd">        weighted_sd(pd.DataFrame({&quot;x&quot;: [1, 2, 3]}), [1, 1, 1]).tolist()</span>
+<span class="sd">        # [1.0]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">weighted_var</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">inf_rm</span><span class="p">)))</span></div>
 
@@ -442,6 +459,13 @@
 <span class="sd">        pd.DataFrame: The index (names p) has the values from quantiles. The columns are based on v:</span>
 <span class="sd">            If it&#39;s a pd.Series it&#39;s one column, if it&#39;s a pd.DataFrame with several columns, than each column</span>
 <span class="sd">            in the output corrosponds to the column in v.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        from balance.stats_and_plots.weighted_stats import weighted_quantile</span>
+<span class="sd">        weighted_quantile([1, 2, 3], [0.5], w=[1, 1, 1]).iloc[0, 0]</span>
+<span class="sd">        # 2.0</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">v</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">_prepare_weighted_stat_args</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">inf_rm</span><span class="p">)</span>
@@ -466,6 +490,7 @@
     <span class="c1"># relevant only if we have non-numeric columns and we want to use model_matrix on them</span>
     <span class="n">numeric_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">add_na</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">formula</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Computes weighted statistics (e.g.: mean, std) on a DataFrame</span>
@@ -495,13 +520,17 @@
 <span class="sd">        add_na (bool, optional): Passed to :func:`model_matrix`.</span>
 <span class="sd">            Relevant only if numeric_only == False and df has non-numeric columns.</span>
 <span class="sd">            Defaults to True.</span>
+<span class="sd">        formula (Optional[Union[str, List[str]]], optional): Formula passed to</span>
+<span class="sd">            :func:`model_matrix`. When provided, the formula is always applied,</span>
+<span class="sd">            allowing customization of which columns/dummies are used in the</span>
+<span class="sd">            statistics (and taking precedence over numeric_only). Defaults to None.</span>
 <span class="sd">        **kwargs: extra args to be passed to functions (e.g.: ci_of_weighted_mean)</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        pd.DataFrame: Returns pd.DataFrame of the output (based on stat argument), for each of the columns in df.</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        ::</span>
+<span class="sd">    .. code-block:: python</span>
 
 <span class="sd">            import numpy as np</span>
 <span class="sd">            import pandas as pd</span>
@@ -563,8 +592,33 @@
 <span class="sd">                #                 0</span>
 <span class="sd">                # 0  (1.738, 4.262)</span>
 
+<span class="sd">            # Formula examples</span>
+<span class="sd">            df = pd.DataFrame({&quot;num&quot;: [1, 2, 3], &quot;group&quot;: [&quot;a&quot;, &quot;b&quot;, &quot;a&quot;]})</span>
+<span class="sd">            # Default formula includes all variables and encodes categoricals.</span>
+<span class="sd">            print(descriptive_stats(df, stat=&quot;mean&quot;))</span>
+<span class="sd">                #    group[a]  group[b]  num</span>
+<span class="sd">                # 0      0.67      0.33  2.0</span>
+<span class="sd">            print(descriptive_stats(df, stat=&quot;mean&quot;, formula=&quot;num&quot;))</span>
+<span class="sd">                #     num</span>
+<span class="sd">                # 0  2.0</span>
+<span class="sd">            print(descriptive_stats(df, stat=&quot;mean&quot;, formula=&quot;group&quot;))</span>
+<span class="sd">                #    group[a]  group[b]</span>
+<span class="sd">                # 0       0.67      0.33</span>
+<span class="sd">            print(descriptive_stats(df, stat=&quot;mean&quot;, formula=&quot;num + group&quot;))</span>
+<span class="sd">                #    group[a]  group[b]  num</span>
+<span class="sd">                # 0      0.67      0.33  2.0</span>
+<span class="sd">            print(descriptive_stats(df, stat=&quot;mean&quot;, formula=&quot;num + group + num:group&quot;))</span>
+<span class="sd">                #    group[a]  group[b]  num  num:group[T.b]</span>
+<span class="sd">                # 0      0.67      0.33  2.0            0.67</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">_verify_value_type</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">formula</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">model_matrix_result</span> <span class="o">=</span> <span class="n">model_matrix</span><span class="p">(</span>
+            <span class="n">df</span><span class="p">,</span> <span class="n">add_na</span><span class="o">=</span><span class="n">add_na</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;one&quot;</span><span class="p">,</span> <span class="n">formula</span><span class="o">=</span><span class="n">formula</span>
+        <span class="p">)[</span><span class="s2">&quot;model_matrix&quot;</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">model_matrix_result</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
         <span class="c1"># If we have non-numeric columns, and want faster results,</span>
         <span class="c1"># then we can set numeric_only == True.</span>
         <span class="c1"># This will skip the model_matrix computation for non-numeric variables.</span>
@@ -574,10 +628,10 @@
             <span class="c1">#       to just use df as is.</span>
             <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># TODO: add the ability to pass formula argument to model_matrix</span>
-            <span class="n">df</span> <span class="o">=</span> <span class="n">model_matrix</span><span class="p">(</span>  <span class="c1"># pyre-ignore[9]: this uses the DataFrame onlyÍ</span>
-                <span class="n">df</span><span class="p">,</span> <span class="n">add_na</span><span class="o">=</span><span class="n">add_na</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;one&quot;</span>
-            <span class="p">)[</span><span class="s2">&quot;model_matrix&quot;</span><span class="p">]</span>
+            <span class="n">model_matrix_result</span> <span class="o">=</span> <span class="n">model_matrix</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">add_na</span><span class="o">=</span><span class="n">add_na</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;one&quot;</span><span class="p">)[</span>
+                <span class="s2">&quot;model_matrix&quot;</span>
+            <span class="p">]</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">model_matrix_result</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">stat</span> <span class="o">==</span> <span class="s2">&quot;mean&quot;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">weighted_mean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">inf_rm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
@@ -641,7 +695,7 @@
 <span class="sd">            -  &#39;prop&#39;, the aggregated (weighted) proportion of rows from each group in &#39;column&#39;.</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        ::</span>
+<span class="sd">    .. code-block:: python</span>
 
 <span class="sd">            from balance.stats_and_plots.weighted_stats import relative_frequency_table</span>
 <span class="sd">            import pandas as pd</span>
