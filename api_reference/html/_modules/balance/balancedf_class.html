@@ -62,6 +62,9 @@
     <span class="n">weighted_stats</span><span class="p">,</span>
     <span class="n">weights_stats</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">balance.stats_and_plots.weighted_comparisons_stats</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">outcome_variance_ratio</span> <span class="k">as</span> <span class="n">_outcome_variance_ratio</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilePathOrBuffer</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">find_items_index_in_list</span><span class="p">,</span> <span class="n">get_items_from_list_via_indices</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.utils.input_validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_assert_type</span>
@@ -668,11 +671,18 @@
         <span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;BalanceDF&quot;</span><span class="p">,</span>
         <span class="n">on_linked_samples</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Figure</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Figure</span><span class="p">]</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Plots the variables in the df of the BalanceDF object.</span>
 
 <span class="sd">        See :func:`weighted_comparisons_plots.plot_dist` for details of various arguments that can be passed.</span>
-<span class="sd">        The default plotting engine is plotly, but seaborn can be used for static plots.</span>
+<span class="sd">        The default plotting engine is plotly, but seaborn can be used for static plots, or &quot;balance&quot;</span>
+<span class="sd">        can be used for ASCII text output suitable for LLM consumption (only dist_type=&quot;hist_ascii&quot; is supported</span>
+<span class="sd">        with library=&quot;balance&quot;).</span>
+
+<span class="sd">        When using ``library=&quot;balance&quot;``, numeric variables are rendered as</span>
+<span class="sd">        comparative histograms by default (showing excess/deficit vs. a</span>
+<span class="sd">        baseline).  Pass ``comparative=False`` to use grouped-bar histograms</span>
+<span class="sd">        instead (same style as categorical variables).</span>
 
 <span class="sd">        This function is inherited as is when invoking BalanceDFCovars.plot, but some modifications are made when</span>
 <span class="sd">        preparing the data for BalanceDFOutcomes.plot and BalanceDFWeights.plot.</span>
@@ -684,9 +694,10 @@
 <span class="sd">            **kwargs: passed to :func:`weighted_comparisons_plots.plot_dist`.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Union[Union[List, np.ndarray], Dict[str, Figure], None]:</span>
+<span class="sd">            Union[Union[List, np.ndarray], Dict[str, Figure], str, None]:</span>
 <span class="sd">                If library=&quot;plotly&quot; then returns a dictionary containing plots if return_dict_of_figures is True. None otherwise.</span>
 <span class="sd">                If library=&quot;seaborn&quot; then returns None, unless return_axes is True. Then either a list or an np.array of matplotlib axis.</span>
+<span class="sd">                If library=&quot;balance&quot; then returns a string with the ASCII text output.</span>
 
 <span class="sd">        Examples:</span>
 <span class="sd">        .. code-block:: python</span>
@@ -730,6 +741,12 @@
 
 <span class="sd">                # Returning plotly qq plots:</span>
 <span class="sd">                s3_null.covars().plot(dist_type = &quot;qq&quot;)</span>
+
+<span class="sd">                # ASCII text output (suitable for LLM consumption):</span>
+<span class="sd">                s3_null.covars().plot(library = &quot;balance&quot;, dist_type = &quot;hist_ascii&quot;)</span>
+
+<span class="sd">                # ASCII with grouped-bar histograms instead of comparative:</span>
+<span class="sd">                s3_null.covars().plot(library = &quot;balance&quot;, comparative = False)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">on_linked_samples</span><span class="p">:</span>
             <span class="n">dfs_to_add</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_BalanceDF_child_from_linked_samples</span><span class="p">()</span>
@@ -2543,6 +2560,123 @@
         <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="BalanceDFOutcomes.outcome_sd_prop">
+<a class="viewcode-back" href="../../balance.balancedf_class.html#balance.balancedf_class.BalanceDFOutcomes.outcome_sd_prop">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">outcome_sd_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;BalanceDFOutcomes&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Relative change in outcome weighted SD after adjustment.</span>
+
+<span class="sd">        Computes (weighted SD of adjusted - weighted SD of unadjusted) / weighted SD of unadjusted.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            pd.Series: Relative difference in outcome weighted standard deviation.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If there are no unadjusted outcomes linked.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            import pandas as pd</span>
+<span class="sd">            from balance.sample_class import Sample</span>
+
+<span class="sd">            sample = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame(</span>
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;id&quot;: [&quot;1&quot;, &quot;2&quot;],</span>
+<span class="sd">                        &quot;x&quot;: [0, 1],</span>
+<span class="sd">                        &quot;weight&quot;: [1.0, 2.0],</span>
+<span class="sd">                        &quot;y&quot;: [0.1, 0.2],</span>
+<span class="sd">                    }</span>
+<span class="sd">                ),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                outcome_columns=&quot;y&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+<span class="sd">            target = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame(</span>
+<span class="sd">                    {&quot;id&quot;: [&quot;3&quot;, &quot;4&quot;], &quot;x&quot;: [0, 1], &quot;weight&quot;: [1.0, 1.0]}</span>
+<span class="sd">                ),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+<span class="sd">            adjusted = sample.set_target(target).adjust(method=&quot;null&quot;)</span>
+<span class="sd">            adjusted.outcomes().outcome_sd_prop()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">outcome_std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+        <span class="n">adjusted_outcome_sd</span> <span class="o">=</span> <span class="n">outcome_std</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">&quot;self&quot;</span><span class="p">]</span>
+        <span class="n">unadjusted_row</span> <span class="o">=</span> <span class="n">outcome_std</span><span class="o">.</span><span class="n">reindex</span><span class="p">([</span><span class="s2">&quot;unadjusted&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">unadjusted_row</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No unadjusted outcomes available. This requires an adjusted sample.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">unadjusted_outcome_sd</span> <span class="o">=</span> <span class="n">outcome_std</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">&quot;unadjusted&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">adjusted_outcome_sd</span> <span class="o">-</span> <span class="n">unadjusted_outcome_sd</span><span class="p">)</span> <span class="o">/</span> <span class="n">unadjusted_outcome_sd</span></div>
+
+
+<div class="viewcode-block" id="BalanceDFOutcomes.outcome_variance_ratio">
+<a class="viewcode-back" href="../../balance.balancedf_class.html#balance.balancedf_class.BalanceDFOutcomes.outcome_variance_ratio">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">outcome_variance_ratio</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;BalanceDFOutcomes&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ratio of outcome variance (adjusted / unadjusted).</span>
+
+<span class="sd">        See :func:`outcome_variance_ratio` for details.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            pd.Series: A series of calculated ratio of variances for each outcome.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If there are no unadjusted outcomes linked.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            import pandas as pd</span>
+<span class="sd">            from balance.sample_class import Sample</span>
+
+<span class="sd">            sample = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame(</span>
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;id&quot;: [&quot;1&quot;, &quot;2&quot;],</span>
+<span class="sd">                        &quot;x&quot;: [0, 1],</span>
+<span class="sd">                        &quot;weight&quot;: [1.0, 2.0],</span>
+<span class="sd">                        &quot;y&quot;: [0.1, 0.2],</span>
+<span class="sd">                    }</span>
+<span class="sd">                ),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                outcome_columns=&quot;y&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+<span class="sd">            target = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame(</span>
+<span class="sd">                    {&quot;id&quot;: [&quot;3&quot;, &quot;4&quot;], &quot;x&quot;: [0, 1], &quot;weight&quot;: [1.0, 1.0]}</span>
+<span class="sd">                ),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+<span class="sd">            adjusted = sample.set_target(target).adjust(method=&quot;null&quot;)</span>
+<span class="sd">            adjusted.outcomes().outcome_variance_ratio()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">linked</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_BalanceDF_child_from_linked_samples</span><span class="p">()</span>
+        <span class="n">unadjusted_outcomes</span> <span class="o">=</span> <span class="n">linked</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;unadjusted&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unadjusted_outcomes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No unadjusted outcomes available. This requires an adjusted sample.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">adjusted_w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span>
+        <span class="n">adjusted_weights</span> <span class="o">=</span> <span class="n">adjusted_w</span><span class="o">.</span><span class="n">values</span> <span class="k">if</span> <span class="n">adjusted_w</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">unadjusted_w</span> <span class="o">=</span> <span class="n">unadjusted_outcomes</span><span class="o">.</span><span class="n">_weights</span>
+        <span class="n">unadjusted_weights</span> <span class="o">=</span> <span class="n">unadjusted_w</span><span class="o">.</span><span class="n">values</span> <span class="k">if</span> <span class="n">unadjusted_w</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">_outcome_variance_ratio</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="p">,</span>
+            <span class="n">unadjusted_outcomes</span><span class="o">.</span><span class="n">df</span><span class="p">,</span>
+            <span class="n">adjusted_weights</span><span class="p">,</span>
+            <span class="n">unadjusted_weights</span><span class="p">,</span>
+        <span class="p">)</span></div>
 </div>
 
 
@@ -2638,7 +2772,7 @@
 <a class="viewcode-back" href="../../balance.balancedf_class.html#balance.balancedf_class.BalanceDFWeights.plot">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;BalanceDFWeights&quot;</span><span class="p">,</span> <span class="n">on_linked_samples</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Figure</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Figure</span><span class="p">]</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Plots kde (kernal density estimation) of the weights in a BalanceDFWeights object using seaborn (as default).</span>
 
 <span class="sd">        It&#39;s possible to use other plots using dist_type with arguments such as &quot;hist&quot;, &quot;kde&quot; (default), &quot;qq&quot;, and &quot;ecdf&quot;.</span>
@@ -2734,6 +2868,165 @@
 <span class="sd">            # 1.111</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">weights_stats</span><span class="o">.</span><span class="n">design_effect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="BalanceDFWeights.design_effect_prop">
+<a class="viewcode-back" href="../../balance.balancedf_class.html#balance.balancedf_class.BalanceDFWeights.design_effect_prop">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">design_effect_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;BalanceDFWeights&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Relative change in design effect: (Deff_adjusted - Deff_unadjusted) / Deff_unadjusted.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.float64: Relative difference in design effect.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If there are no unadjusted weights linked.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            import pandas as pd</span>
+<span class="sd">            from balance.sample_class import Sample</span>
+
+<span class="sd">            sample = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame(</span>
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;id&quot;: [&quot;1&quot;, &quot;2&quot;],</span>
+<span class="sd">                        &quot;x&quot;: [0, 1],</span>
+<span class="sd">                        &quot;weight&quot;: [1.0, 2.0],</span>
+<span class="sd">                    }</span>
+<span class="sd">                ),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+<span class="sd">            target = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame(</span>
+<span class="sd">                    {&quot;id&quot;: [&quot;3&quot;, &quot;4&quot;], &quot;x&quot;: [0, 1], &quot;weight&quot;: [1.0, 1.0]}</span>
+<span class="sd">                ),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+<span class="sd">            adjusted = sample.set_target(target).adjust(method=&quot;null&quot;)</span>
+<span class="sd">            adjusted.weights().design_effect_prop()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">linked</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_BalanceDF_child_from_linked_samples</span><span class="p">()</span>
+        <span class="n">unadjusted_weights</span> <span class="o">=</span> <span class="n">linked</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;unadjusted&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unadjusted_weights</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No unadjusted weights available. This requires an adjusted sample.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unadjusted_weights</span><span class="p">,</span> <span class="n">BalanceDFWeights</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected BalanceDFWeights for unadjusted weights.&quot;</span><span class="p">)</span>
+        <span class="n">deff_adjusted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_effect</span><span class="p">()</span>
+        <span class="n">deff_unadjusted</span> <span class="o">=</span> <span class="n">unadjusted_weights</span><span class="o">.</span><span class="n">design_effect</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">deff_adjusted</span> <span class="o">-</span> <span class="n">deff_unadjusted</span><span class="p">)</span> <span class="o">/</span> <span class="n">deff_unadjusted</span></div>
+
+
+<div class="viewcode-block" id="BalanceDFWeights.r_indicator">
+<a class="viewcode-back" href="../../balance.balancedf_class.html#balance.balancedf_class.BalanceDFWeights.r_indicator">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">r_indicator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;BalanceDFWeights&quot;</span><span class="p">,</span>
+        <span class="n">target_propensity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">npt</span><span class="o">.</span><span class="n">ArrayLike</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Approximate the R-indicator using inverse weights as propensities.</span>
+
+<span class="sd">        This is a convenience wrapper around</span>
+<span class="sd">        :func:`weighted_comparisons_stats.r_indicator`. Sample response</span>
+<span class="sd">        propensities are approximated from the inverse of the current weights.</span>
+<span class="sd">        If these inverse weights exceed 1, they are rescaled by their maximum</span>
+<span class="sd">        so the derived propensities remain in the valid ``[0, 1]`` interval.</span>
+
+<span class="sd">        When ``target_propensity`` is omitted, the method requires the sample</span>
+<span class="sd">        to have a linked target and assumes every target unit has propensity 1.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            self (BalanceDFWeights): Object.</span>
+<span class="sd">            target_propensity (float | npt.ArrayLike | None, optional):</span>
+<span class="sd">                Target response propensities to compare against. If ``None``,</span>
+<span class="sd">                uses a vector of ones with the linked target&#39;s row count. If</span>
+<span class="sd">                a scalar is provided, it is broadcast to linked target length.</span>
+<span class="sd">                If an array-like is provided and a linked target exists, its</span>
+<span class="sd">                length must equal the linked target row count.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.float64: Approximate R-indicator derived from inverse weights.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the sample has no target and ``target_propensity`` is</span>
+<span class="sd">                omitted, if a scalar ``target_propensity`` is provided without a</span>
+<span class="sd">                linked target, if array-like target propensities do not match a</span>
+<span class="sd">                linked target row count, or if the weights are non-finite /</span>
+<span class="sd">                non-positive.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            import pandas as pd</span>
+<span class="sd">            from balance.sample_class import Sample</span>
+
+<span class="sd">            sample = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame({&quot;id&quot;: [1, 2], &quot;weight&quot;: [2.0, 4.0]}),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+<span class="sd">            target = Sample.from_frame(</span>
+<span class="sd">                pd.DataFrame({&quot;id&quot;: [10, 11, 12], &quot;weight&quot;: [1.0, 1.0, 1.0]}),</span>
+<span class="sd">                id_column=&quot;id&quot;,</span>
+<span class="sd">                weight_column=&quot;weight&quot;,</span>
+<span class="sd">                standardize_types=False,</span>
+<span class="sd">            )</span>
+
+<span class="sd">            round(sample.set_target(target).weights().r_indicator(), 3)</span>
+<span class="sd">            # 0.293</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sample_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">sample_weights</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;BalanceDFWeights.r_indicator requires at least one sample weight&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">sample_weights</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;BalanceDFWeights.r_indicator requires finite weights&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">sample_weights</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;BalanceDFWeights.r_indicator requires strictly positive weights&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">sample_propensity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reciprocal</span><span class="p">(</span><span class="n">sample_weights</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+        <span class="n">max_propensity</span> <span class="o">=</span> <span class="n">sample_propensity</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">max_propensity</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="n">sample_propensity</span> <span class="o">=</span> <span class="n">sample_propensity</span> <span class="o">/</span> <span class="n">max_propensity</span>
+
+        <span class="n">target_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span><span class="o">.</span><span class="n">_links</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;target&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">target_propensity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span><span class="o">.</span><span class="n">_no_target_error</span><span class="p">()</span>
+            <span class="n">target_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span><span class="o">.</span><span class="n">_links</span><span class="p">[</span><span class="s2">&quot;target&quot;</span><span class="p">]</span>
+            <span class="n">target_propensity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">target_sample</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">target_propensity</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">target_sample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;BalanceDFWeights.r_indicator requires a linked target when &quot;</span>
+                    <span class="s2">&quot;target_propensity is scalar&quot;</span>
+                <span class="p">)</span>
+            <span class="n">target_propensity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+                <span class="n">target_sample</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">float</span><span class="p">(</span><span class="n">target_propensity</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">target_sample</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_propensity_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">target_propensity</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">target_propensity_array</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">target_propensity_array</span> <span class="o">=</span> <span class="n">target_propensity_array</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">target_propensity_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">target_sample</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;BalanceDFWeights.r_indicator requires target_propensity length &quot;</span>
+                    <span class="s2">&quot;to match linked target row count&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">weighted_comparisons_stats</span><span class="o">.</span><span class="n">r_indicator</span><span class="p">(</span>
+            <span class="n">sample_propensity</span><span class="p">,</span> <span class="n">target_propensity</span>
+        <span class="p">)</span></div>
 
 
     <span class="c1"># TODO: in the future, consider if this type of overriding is the best solution.</span>
