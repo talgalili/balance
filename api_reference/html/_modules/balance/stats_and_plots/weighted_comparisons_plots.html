@@ -50,6 +50,7 @@
     <span class="n">unicode_literals</span><span class="p">,</span>
 <span class="p">)</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TypedDict</span><span class="p">,</span> <span class="n">Union</span>
@@ -94,6 +95,40 @@
     <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
     <span class="n">weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">]</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_nbformat_mime_error</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;True if ``error`` is Plotly&#39;s &quot;nbformat-not-installed&quot; mime renderer error.</span>
+
+<span class="sd">    Plotly&#39;s mime renderer raises ``ValueError`` when ``nbformat`` is not</span>
+<span class="sd">    importable in the current environment (CLI / test runs / minimal envs).</span>
+<span class="sd">    Identifying this specific shape lets callers downgrade it to a warning</span>
+<span class="sd">    rather than letting an unrelated ``ValueError`` slip through silently.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">error_message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">return</span> <span class="s2">&quot;nbformat&quot;</span> <span class="ow">in</span> <span class="n">error_message</span> <span class="ow">and</span> <span class="p">(</span>
+        <span class="s2">&quot;mime type rendering requires&quot;</span> <span class="ow">in</span> <span class="n">error_message</span>
+        <span class="ow">or</span> <span class="s2">&quot;mime rendering requires&quot;</span> <span class="ow">in</span> <span class="n">error_message</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_safe_plotly_iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Render Plotly figure in a way that is resilient to missing notebook deps.</span>
+
+<span class="sd">    In non-notebook environments, ``offline.iplot`` may raise a ``ValueError``</span>
+<span class="sd">    when Plotly&#39;s mime renderer cannot import ``nbformat``. In that case, log a</span>
+<span class="sd">    warning and skip the interactive plot so CLI/test workflows don&#39;t crash.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">offline</span><span class="o">.</span><span class="n">iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_nbformat_mime_error</span><span class="p">(</span><span class="n">error</span><span class="p">):</span>
+            <span class="k">raise</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Plotly notebook mime rendering unavailable; skipping interactive plot. Original error: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">error</span><span class="p">,</span>
+        <span class="p">)</span>
 
 
 <span class="c1">################################################################################</span>
@@ -178,7 +213,7 @@
         <span class="n">col2</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Invalid value for &#39;tycolor_typepe&#39;. Must be either &#39;color&#39; or &#39;line&#39;.&quot;</span>
+            <span class="s2">&quot;Invalid value for &#39;color_type&#39;. Must be either &#39;color&#39; or &#39;line&#39;.&quot;</span>
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;sample&quot;</span><span class="p">,</span> <span class="s2">&quot;unadjusted&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="p">(</span>
@@ -442,6 +477,15 @@
     <span class="p">}</span>
     <span class="k">if</span> <span class="n">dist_type</span> <span class="o">!=</span> <span class="s2">&quot;ecdf&quot;</span><span class="p">:</span>
         <span class="n">kwargs_for_dist_function</span><span class="p">[</span><span class="s2">&quot;common_norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">dist_type</span> <span class="o">==</span> <span class="s2">&quot;kde&quot;</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">supports_warn_singular</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;warn_singular&quot;</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">dist_function</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">supports_warn_singular</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">supports_warn_singular</span><span class="p">:</span>
+            <span class="n">kwargs_for_dist_function</span><span class="p">[</span><span class="s2">&quot;warn_singular&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="c1"># Set explicit bins for histplot when using weights to avoid seaborn &#39;bins cannot be auto&#39; warning.</span>
     <span class="c1"># Use Freedman-Diaconis rule which adapts to data distribution.</span>
     <span class="k">if</span> <span class="n">dist_type</span> <span class="o">==</span> <span class="s2">&quot;hist&quot;</span> <span class="ow">and</span> <span class="n">weighted</span><span class="p">:</span>
@@ -524,8 +568,11 @@
             <span class="n">label</span><span class="o">=</span><span class="n">names</span><span class="p">[</span><span class="n">ii</span><span class="p">],</span>
             <span class="n">ax</span><span class="o">=</span><span class="n">axis</span><span class="p">,</span>
         <span class="p">)</span>
+    <span class="c1"># pyrefly: ignore [bad-argument-type]</span>
     <span class="n">set_xy_axes_to_use_the_same_lim</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+    <span class="c1"># pyrefly: ignore [missing-attribute]</span>
     <span class="n">axis</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">axis</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">(),</span> <span class="n">axis</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">(),</span> <span class="s2">&quot;--&quot;</span><span class="p">)</span>
+    <span class="c1"># pyrefly: ignore [missing-attribute]</span>
     <span class="n">axis</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;quantile-quantile plot of covar &#39;</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">&#39; in target vs sample&quot;</span><span class="p">)</span>
     <span class="n">_safe_show_legend</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span></div>
 
@@ -622,9 +669,13 @@
                 <span class="c1"># Using index access for namedtuple since attribute access causes pyre errors</span>
                 <span class="n">axis</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">prop_sample</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">prop_target</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>  <span class="c1"># type: ignore[attr-defined]</span>
 
+    <span class="c1"># pyrefly: ignore [missing-attribute]</span>
     <span class="n">axis</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">)</span>
+    <span class="c1"># pyrefly: ignore [missing-attribute]</span>
     <span class="n">axis</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">)</span>
+    <span class="c1"># pyrefly: ignore [missing-attribute]</span>
     <span class="n">axis</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">axis</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">(),</span> <span class="n">axis</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">(),</span> <span class="s2">&quot;--&quot;</span><span class="p">)</span>
+    <span class="c1"># pyrefly: ignore [missing-attribute]</span>
     <span class="n">axis</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span>
         <span class="sa">f</span><span class="s2">&quot;proportion-proportion plot of covar &#39;</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">&#39; in target vs sample&quot;</span>
     <span class="p">)</span>
@@ -724,6 +775,10 @@
     <span class="c1">#  Choose set of variables to plot</span>
     <span class="n">variables</span> <span class="o">=</span> <span class="n">choose_variables</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;df&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dfs</span><span class="p">),</span> <span class="n">variables</span><span class="o">=</span><span class="n">variables</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;plotting variables </span><span class="si">{</span><span class="n">variables</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No variables to plot — returning early.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">return_axes</span> <span class="k">else</span> <span class="kc">None</span>
 
     <span class="c1">#  Set up subplots</span>
     <span class="n">f</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">7</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">)))</span>
@@ -937,7 +992,7 @@
         <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">dict_of_qqs</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">fig</span>
         <span class="k">if</span> <span class="n">plot_it</span><span class="p">:</span>
-            <span class="n">offline</span><span class="o">.</span><span class="n">iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+            <span class="n">_safe_plotly_iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">return_dict_of_figures</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">dict_of_qqs</span></div>
 
@@ -1103,7 +1158,7 @@
         <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">plot_it</span><span class="p">:</span>
-            <span class="n">offline</span><span class="o">.</span><span class="n">iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+            <span class="n">_safe_plotly_iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">return_dict_of_figures</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">dict_of_density_plots</span></div>
@@ -1228,7 +1283,7 @@
 
         <span class="n">dict_of_bars</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">fig</span>
         <span class="k">if</span> <span class="n">plot_it</span><span class="p">:</span>
-            <span class="n">offline</span><span class="o">.</span><span class="n">iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+            <span class="n">_safe_plotly_iplot</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">return_dict_of_figures</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">dict_of_bars</span></div>
 
@@ -1271,7 +1326,7 @@
 <span class="sd">            If returned - the dictionary is of plots.</span>
 <span class="sd">            Keys in this dictionary are the variable names for each plot.</span>
 <span class="sd">            Values are plotly plot objects plotted like:</span>
-<span class="sd">                offline.iplot(dict_of_all_plots[&#39;age&#39;])</span>
+<span class="sd">                plotly.offline.iplot(dict_of_all_plots[&#39;age&#39;])</span>
 <span class="sd">            Or simply:</span>
 <span class="sd">                dict_of_all_plots[&#39;age&#39;]</span>
 <span class="sd">        ylim (Optional[Tuple[float, float]], optional): A tuple with two float values representing the lower and upper limits of the y-axis.</span>

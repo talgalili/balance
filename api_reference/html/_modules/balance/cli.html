@@ -47,7 +47,8 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">argparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArgumentParser</span><span class="p">,</span> <span class="n">Namespace</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">argparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArgumentParser</span><span class="p">,</span> <span class="n">ArgumentTypeError</span><span class="p">,</span> <span class="n">Namespace</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numbers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Integral</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Type</span>
 
@@ -60,6 +61,38 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.linear_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogisticRegression</span>
 
 <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__package__</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_positive_int_arg</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse an argparse value as a strictly positive integer.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value: Raw argument value supplied by argparse or tests.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The parsed positive integer.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ArgumentTypeError: If the value is not an integer greater than zero.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">ArgumentTypeError</span><span class="p">(</span><span class="s2">&quot;must be an integer greater than 0&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Integral</span><span class="p">):</span>
+        <span class="n">parsed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">stripped</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">digits</span> <span class="o">=</span> <span class="n">stripped</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">if</span> <span class="n">stripped</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">))</span> <span class="k">else</span> <span class="n">stripped</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">digits</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">digits</span><span class="o">.</span><span class="n">isdecimal</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">ArgumentTypeError</span><span class="p">(</span><span class="s2">&quot;must be an integer greater than 0&quot;</span><span class="p">)</span>
+        <span class="n">parsed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ArgumentTypeError</span><span class="p">(</span><span class="s2">&quot;must be an integer greater than 0&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">parsed</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ArgumentTypeError</span><span class="p">(</span><span class="s2">&quot;must be an integer greater than 0&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">parsed</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_parse_csv_columns_arg</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">arg_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -132,7 +165,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_lambda_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_num_lambdas</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_weight_trimming_mean_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mf">20.0</span>
+        <span class="c1"># TODO(talgalili): Support BalanceFrame as an alternative entry point to Sample</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sample_cls</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">balance_sample_cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">balance_sample_cls</span>
+        <span class="c1"># pyrefly: ignore [bad-assignment]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sample_package_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">__package__</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sample_package_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">__version__</span>
 
@@ -182,6 +217,7 @@
             <span class="k">if</span> <span class="n">keep_cols</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">needed_columns</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">keep_cols</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_keep_row_column</span><span class="p">():</span>
+            <span class="c1"># pyrefly: ignore [bad-argument-type]</span>
             <span class="n">needed_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keep_row_column</span><span class="p">())</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_outcome_columns</span><span class="p">():</span>
             <span class="n">outcome_columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcome_columns</span><span class="p">()</span>
@@ -189,7 +225,7 @@
                 <span class="n">needed_columns</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">outcome_columns</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">nc</span> <span class="ow">in</span> <span class="n">needed_columns</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">nc</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">nc</span><span class="si">}</span><span class="s2"> not in input colums&quot;</span></div>
+            <span class="k">assert</span> <span class="n">nc</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">nc</span><span class="si">}</span><span class="s2"> not in input columns&quot;</span></div>
 
 
     <span class="c1"># TODO: decide if to explicitly mention/check here the option of methods or not</span>
@@ -390,7 +426,7 @@
 
 <span class="sd">        Note that keep columns that are not the id, weight, a covariate,</span>
 <span class="sd">        or an explicit outcome column will be placed into</span>
-<span class="sd">        ``ignore_columns`` by :meth:`process_batch`.  They are still</span>
+<span class="sd">        ``ignored_columns`` by :meth:`process_batch`.  They are still</span>
 <span class="sd">        carried through the ``Sample`` and available in the output.</span>
 
 <span class="sd">        Returns:</span>
@@ -412,7 +448,7 @@
 
 <span class="sd">        These columns are used to filter the final output DataFrame.</span>
 <span class="sd">        Keep columns that are not the id, weight, a covariate, or an</span>
-<span class="sd">        explicit outcome column will be placed into ``ignore_columns``</span>
+<span class="sd">        explicit outcome column will be placed into ``ignored_columns``</span>
 <span class="sd">        during processing but are still retained by the ``Sample`` and</span>
 <span class="sd">        included in the output.</span>
 
@@ -569,7 +605,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">num_lambdas</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">num_lambdas</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">_positive_int_arg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">num_lambdas</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="BalanceCLI.transformations">
@@ -761,6 +797,7 @@
         <span class="n">num_lambdas</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">250</span><span class="p">,</span>
         <span class="n">weight_trimming_mean_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
         <span class="n">sample_cls</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">balance_sample_cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">balance_sample_cls</span><span class="p">,</span>
+        <span class="c1"># pyrefly: ignore [bad-function-definition]</span>
         <span class="n">sample_package_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">__package__</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run adjustment for a batch of data and return outputs.</span>
@@ -842,7 +879,7 @@
             <span class="p">}</span>
 
         <span class="c1"># Build the set of explicitly mentioned columns.  Any column not in</span>
-        <span class="c1"># this set is placed into ignore_columns so it is carried through</span>
+        <span class="c1"># this set is placed into ignored_columns so it is carried through</span>
         <span class="c1"># the Sample but does not participate in the adjustment.</span>
         <span class="n">outcome_columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcome_columns</span><span class="p">()</span>
         <span class="n">explicitly_mentioned</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
@@ -853,7 +890,7 @@
         <span class="k">if</span> <span class="n">outcome_columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">explicitly_mentioned</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">outcome_columns</span><span class="p">)</span>
 
-        <span class="n">ignore_columns</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ignored_columns</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">column</span> <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">batch_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">explicitly_mentioned</span>
         <span class="p">]</span>
         <span class="n">outcome_columns</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">outcome_columns</span><span class="p">)</span> <span class="k">if</span> <span class="n">outcome_columns</span> <span class="k">else</span> <span class="kc">None</span>
@@ -868,7 +905,7 @@
             <span class="n">id_column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id_column</span><span class="p">(),</span>
             <span class="n">weight_column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weight_column</span><span class="p">(),</span>
             <span class="n">outcome_columns</span><span class="o">=</span><span class="n">outcome_columns</span><span class="p">,</span>
-            <span class="n">ignore_columns</span><span class="o">=</span><span class="n">ignore_columns</span><span class="p">,</span>
+            <span class="n">ignored_columns</span><span class="o">=</span><span class="n">ignored_columns</span><span class="p">,</span>
             <span class="n">check_id_uniqueness</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">standardize_types</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">standardize_types</span><span class="p">(),</span>
         <span class="p">)</span>
@@ -879,7 +916,7 @@
             <span class="n">id_column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id_column</span><span class="p">(),</span>
             <span class="n">weight_column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weight_column</span><span class="p">(),</span>
             <span class="n">outcome_columns</span><span class="o">=</span><span class="n">outcome_columns</span><span class="p">,</span>
-            <span class="n">ignore_columns</span><span class="o">=</span><span class="n">ignore_columns</span><span class="p">,</span>
+            <span class="n">ignored_columns</span><span class="o">=</span><span class="n">ignored_columns</span><span class="p">,</span>
             <span class="n">check_id_uniqueness</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">standardize_types</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">standardize_types</span><span class="p">(),</span>
         <span class="p">)</span>
@@ -929,7 +966,10 @@
             <span class="p">)</span>
 
             <span class="c1"># Update dtypes</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">return_df_with_original_dtypes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">return_df_with_original_dtypes</span>
+                <span class="ow">and</span> <span class="n">adjusted</span><span class="o">.</span><span class="n">_df_dtypes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">):</span>
                 <span class="n">df_to_return</span> <span class="o">=</span> <span class="n">balance</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">_astype_in_df_from_dtypes</span><span class="p">(</span>
                     <span class="n">adjusted</span><span class="o">.</span><span class="n">df</span><span class="p">,</span> <span class="n">adjusted</span><span class="o">.</span><span class="n">_df_dtypes</span>
                 <span class="p">)</span>
@@ -954,7 +994,10 @@
                 <span class="n">error_message</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">module_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;The error message is: &quot;</span> <span class="o">+</span> <span class="n">error_message</span><span class="p">)</span>
                 <span class="c1"># Update dtypes</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">return_df_with_original_dtypes</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">return_df_with_original_dtypes</span>
+                    <span class="ow">and</span> <span class="n">sample</span><span class="o">.</span><span class="n">_df_dtypes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="p">):</span>
                     <span class="n">df_to_return</span> <span class="o">=</span> <span class="n">balance</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">_astype_in_df_from_dtypes</span><span class="p">(</span>
                         <span class="n">sample</span><span class="o">.</span><span class="n">df</span><span class="p">,</span> <span class="n">sample</span><span class="o">.</span><span class="n">_df_dtypes</span>
                     <span class="p">)</span>
@@ -980,7 +1023,7 @@
                     <span class="p">),</span>
                 <span class="p">}</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">e</span>
+                <span class="k">raise</span>
         <span class="k">return</span> <span class="n">rval</span></div>
 
 
@@ -1173,6 +1216,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_num_lambdas</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_weight_trimming_mean_ratio</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_sample_cls</span><span class="p">,</span>
+            <span class="c1"># pyrefly: ignore [bad-assignment]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_sample_package_name</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_sample_package_version</span><span class="p">,</span>
         <span class="p">)</span> <span class="o">=</span> <span class="p">(</span>
@@ -1326,9 +1370,11 @@
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Done fitting the model, writing output&quot;</span><span class="p">)</span>
         <span class="c1"># Remove unneeded rows and columns</span>
+        <span class="c1"># pyrefly: ignore [bad-argument-type]</span>
         <span class="n">output_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapt_output</span><span class="p">(</span><span class="n">output_df</span><span class="p">)</span>
 
         <span class="c1"># Write output</span>
+        <span class="c1"># pyrefly: ignore [bad-argument-type]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write_outputs</span><span class="p">(</span><span class="n">output_df</span><span class="p">,</span> <span class="n">diagnostics_df</span><span class="p">)</span></div>
 </div>
 
@@ -1400,7 +1446,7 @@
         <span class="n">help</span><span class="o">=</span><span class="p">(</span>
             <span class="s2">&quot;Comma-separated columns used as outcomes. If not supplied, &quot;</span>
             <span class="s2">&quot;columns that are not id, weight, or covariates are placed into &quot;</span>
-            <span class="s2">&quot;ignore_columns (carried through but not used in adjustment).&quot;</span>
+            <span class="s2">&quot;ignored_columns (carried through but not used in adjustment).&quot;</span>
         <span class="p">),</span>
     <span class="p">)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
@@ -1519,7 +1565,7 @@
     <span class="p">)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;--num_lambdas&quot;</span><span class="p">,</span>
-        <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="n">_positive_int_arg</span><span class="p">,</span>
         <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span>
         <span class="n">help</span><span class="o">=</span><span class="p">(</span>

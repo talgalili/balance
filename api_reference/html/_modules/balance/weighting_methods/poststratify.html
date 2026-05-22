@@ -42,19 +42,22 @@
 
 <span class="c1"># pyre-strict</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance</span><span class="w"> </span><span class="kn">import</span> <span class="n">adjustment</span> <span class="k">as</span> <span class="n">balance_adjustment</span><span class="p">,</span> <span class="n">util</span> <span class="k">as</span> <span class="n">balance_util</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">balance.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">_safe_fillna_and_infer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">patsy.highlevel</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelDesc</span>
 
 <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__package__</span><span class="p">)</span>
 
 
-<span class="c1"># TODO: Add tests for all arguments of function</span>
 <div class="viewcode-block" id="poststratify">
 <a class="viewcode-back" href="../../../balance.weighting_methods.poststratify.html#balance.weighting_methods.poststratify.poststratify">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">poststratify</span><span class="p">(</span>
@@ -63,7 +66,7 @@
     <span class="n">target_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">target_weights</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
     <span class="n">variables</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">transformations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+    <span class="n">transformations</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
     <span class="n">transformations_drop</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">strict_matching</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">na_action</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;add_indicator&quot;</span><span class="p">,</span>
@@ -71,8 +74,10 @@
     <span class="n">weight_trimming_percentile</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">keep_sum_of_weights</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">formula</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">store_fit_metadata</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Perform cell-based post-stratification to adjust sample weights so that the sample matches the joint distribution of, one or more, specified variables in the target population.</span>
 
@@ -87,7 +92,11 @@
 <span class="sd">        target_df (pd.DataFrame): DataFrame representing the target population.</span>
 <span class="sd">        target_weights (pd.Series): Design weights for the target.</span>
 <span class="sd">        variables (Optional[List[str]], optional): List of variables to define post-stratification cells. If None, uses the intersection of columns in sample_df and target_df.</span>
-<span class="sd">        transformations (str, optional): Transformations to apply to data before fitting the model. Default is &quot;default&quot;. See `balance.adjustment.apply_transformations`.</span>
+<span class="sd">        transformations (Dict[str, Callable[..., Any]] | str | None, optional):</span>
+<span class="sd">            Transformations to apply to data before fitting the model.</span>
+<span class="sd">            Accepts the same forms as</span>
+<span class="sd">            :func:`balance.adjustment.apply_transformations`. Defaults to</span>
+<span class="sd">            ``&quot;default&quot;``.</span>
 <span class="sd">        transformations_drop (bool, optional): If True, drops variables not affected by transformations. Default is True.</span>
 <span class="sd">        strict_matching (bool, optional): If True, requires all sample cells to be present in the target. If False, cells missing in the target are assigned weight 0 (and a warning is raised). Default is True.</span>
 <span class="sd">        na_action (str, optional): How to handle missing values. Use</span>
@@ -100,13 +109,50 @@
 <span class="sd">            winsorisation, passed to :func:`balance.adjustment.trim_weights`.</span>
 <span class="sd">        keep_sum_of_weights (bool, optional): Preserve the sum of weights during trimming before</span>
 <span class="sd">            the final normalisation to the target total. Defaults to True.</span>
+<span class="sd">        formula (Optional[Union[str, List[str]]], optional): Formula-like</span>
+<span class="sd">            specification to select post-stratification variables, as an</span>
+<span class="sd">            alternative to ``variables``. Supported operators are ``:``</span>
+<span class="sd">            (interaction), ``.`` (all common columns of sample and target),</span>
+<span class="sd">            ``-`` (exclude a variable), and an optional leading ``~``</span>
+<span class="sd">            (the LHS is ignored). Examples: ``&quot;a:b:c&quot;``, ``&quot;.&quot;``,</span>
+<span class="sd">            ``&quot;. - c&quot;``, ``&quot;y ~ a:b&quot;``, ``[&quot;a&quot;, &quot;b&quot;]`` (list form</span>
+<span class="sd">            joint-cells all items).</span>
+
+<span class="sd">            Additive operators ``+`` and ``*`` are **not** supported and</span>
+<span class="sd">            will raise ``ValueError``. Post-stratification defines cells</span>
+<span class="sd">            by the *joint* distribution of the selected variables — every</span>
+<span class="sd">            variable added only refines the cell grid — so ``a + b``,</span>
+<span class="sd">            ``a * b`` and ``a:b`` would all produce identical cells.</span>
+<span class="sd">            Rejecting ``+``/``*`` prevents users from silently writing a</span>
+<span class="sd">            formula that looks like a main-effects model but is treated</span>
+<span class="sd">            as a joint interaction. (Note: raking, unlike</span>
+<span class="sd">            post-stratification, operates on marginals and will support</span>
+<span class="sd">            additive formulas when it gains a ``formula=`` argument.)</span>
+
+<span class="sd">            Parsing uses patsy operators for variable extraction only;</span>
+<span class="sd">            general patsy transforms/functions (e.g., ``np.log(a)``) are</span>
+<span class="sd">            not supported. Mutually exclusive with non-empty</span>
+<span class="sd">            ``variables``.</span>
 <span class="sd">        *args: Additional positional arguments (currently unused).</span>
-<span class="sd">        **kwargs: Additional keyword arguments (currently unused).</span>
+<span class="sd">        store_fit_metadata (bool, optional): Whether to include fit-time</span>
+<span class="sd">            artifacts in the returned model dictionary so</span>
+<span class="sd">            ``BalanceFrame.predict_weights()`` can reconstruct</span>
+<span class="sd">            poststratification weights. Defaults to ``False``.</span>
+<span class="sd">        **kwargs: Reserved for backward compatibility. Unknown keys raise</span>
+<span class="sd">            ``TypeError`` to avoid silently ignoring typos.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        dict:</span>
-<span class="sd">            weight (pd.Series): Final weights for the sample, summing to the target&#39;s total weight.</span>
-<span class="sd">            model (dict): Description of the adjustment method used.</span>
+<span class="sd">            weight (pd.Series): Final weights for the sample. With</span>
+<span class="sd">                ``strict_matching=True`` (the default), every sample cell is</span>
+<span class="sd">                also present in the target and the weights sum to the target&#39;s</span>
+<span class="sd">                total weight. With ``strict_matching=False``, sample rows</span>
+<span class="sd">                whose cell is absent from the target are assigned weight 0,</span>
+<span class="sd">                so the weights sum to the total target weight restricted to</span>
+<span class="sd">                cells that are present in the sample (i.e. target-only cells</span>
+<span class="sd">                are effectively excluded).</span>
+<span class="sd">            model (dict): Description of the adjustment method used, with</span>
+<span class="sd">                optional fit metadata when ``store_fit_metadata=True``.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If strict_matching is True and some sample cells are missing in the target.</span>
@@ -175,8 +221,42 @@
             <span class="s2">&quot;weight can&#39;t be a name of a column in sample or target when applying poststratify&quot;</span>
         <span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">variables</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">variables</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">explicit_cell_selection</span> <span class="o">=</span> <span class="n">formula</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">variables</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">formula</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">variables</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Specify only one of `variables` or `formula`.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">store_fit_metadata</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;`store_fit_metadata` must be a bool.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="n">unknown</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected keyword arguments: </span><span class="si">{</span><span class="n">unknown</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">original_sample_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sample_weights</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="n">store_fit_metadata</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">original_target_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">target_weights</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="n">store_fit_metadata</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">formula</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">variables</span> <span class="o">=</span> <span class="n">_variables_from_formula</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span><span class="p">,</span> <span class="n">formula</span><span class="p">)</span>
+
     <span class="n">variables</span> <span class="o">=</span> <span class="n">balance_util</span><span class="o">.</span><span class="n">choose_variables</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="n">variables</span><span class="p">)</span>
+    <span class="n">variables_before_transformations</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Join variables for sample and target: </span><span class="si">{</span><span class="n">variables</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">transformations_to_apply</span> <span class="o">=</span> <span class="n">transformations</span>
+    <span class="c1"># When cell-definition variables are explicitly set (via `variables` or</span>
+    <span class="c1"># `formula`), ensure cell-definition precedence: only transformations on</span>
+    <span class="c1"># selected variables are applied. Transformations for out-of-scope keys are</span>
+    <span class="c1"># ignored so they cannot be treated as additions.</span>
+    <span class="k">if</span> <span class="n">explicit_cell_selection</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transformations_to_apply</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">selected</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+        <span class="n">filtered</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">transformations_to_apply</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">}</span>
+        <span class="n">transformations_to_apply</span> <span class="o">=</span> <span class="n">filtered</span> <span class="k">if</span> <span class="n">filtered</span> <span class="k">else</span> <span class="kc">None</span>
 
     <span class="n">sample_df</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">variables</span><span class="p">]</span>
     <span class="n">target_df</span> <span class="o">=</span> <span class="n">target_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">variables</span><span class="p">]</span>
@@ -194,9 +274,14 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`na_action` must be &#39;add_indicator&#39; or &#39;drop&#39;&quot;</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">store_fit_metadata</span> <span class="ow">and</span> <span class="n">transformations_to_apply</span> <span class="o">==</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span>
+        <span class="n">transformations_to_apply</span> <span class="o">=</span> <span class="n">balance_adjustment</span><span class="o">.</span><span class="n">default_transformations</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span><span class="p">)</span>
+        <span class="p">)</span>
+
     <span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span> <span class="o">=</span> <span class="n">balance_adjustment</span><span class="o">.</span><span class="n">apply_transformations</span><span class="p">(</span>
         <span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span><span class="p">),</span>
-        <span class="n">transformations</span><span class="o">=</span><span class="n">transformations</span><span class="p">,</span>
+        <span class="n">transformations</span><span class="o">=</span><span class="n">transformations_to_apply</span><span class="p">,</span>
         <span class="n">drop</span><span class="o">=</span><span class="n">transformations_drop</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">variables</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sample_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
@@ -241,11 +326,399 @@
         <span class="n">keep_sum_of_weights</span><span class="o">=</span><span class="n">keep_sum_of_weights</span><span class="p">,</span>
     <span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">raw_weights</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
+    <span class="n">model</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;poststratify&quot;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">store_fit_metadata</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">original_sample_weights</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">original_target_weights</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unexpected missing stored training weights.&quot;</span><span class="p">)</span>
+        <span class="c1"># Persisting non-pickleable callables (e.g., lambdas/closures) breaks</span>
+        <span class="c1"># serialization workflows for fitted objects. Require picklable</span>
+        <span class="c1"># transformations when fit metadata storage is enabled.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># @lint-ignore PYTHONPICKLEISBAD - serializability check only; no untrusted deserialization</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">transformations_to_apply</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;`transformations` must be pickleable when &quot;</span>
+                <span class="s2">&quot;store_fit_metadata=True. Pass store_fit_metadata=False to &quot;</span>
+                <span class="s2">&quot;disable fit-artifact persistence for this run.&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;variables&quot;</span><span class="p">:</span> <span class="n">variables</span><span class="p">,</span>
+                <span class="s2">&quot;variables_before_transformations&quot;</span><span class="p">:</span> <span class="n">variables_before_transformations</span><span class="p">,</span>
+                <span class="s2">&quot;na_action&quot;</span><span class="p">:</span> <span class="n">na_action</span><span class="p">,</span>
+                <span class="s2">&quot;strict_matching&quot;</span><span class="p">:</span> <span class="n">strict_matching</span><span class="p">,</span>
+                <span class="s2">&quot;transformations&quot;</span><span class="p">:</span> <span class="n">transformations_to_apply</span><span class="p">,</span>
+                <span class="s2">&quot;transformations_origin&quot;</span><span class="p">:</span> <span class="n">transformations</span><span class="p">,</span>
+                <span class="s2">&quot;transformations_drop&quot;</span><span class="p">:</span> <span class="n">transformations_drop</span><span class="p">,</span>
+                <span class="s2">&quot;weight_trimming_mean_ratio&quot;</span><span class="p">:</span> <span class="n">weight_trimming_mean_ratio</span><span class="p">,</span>
+                <span class="s2">&quot;weight_trimming_percentile&quot;</span><span class="p">:</span> <span class="n">weight_trimming_percentile</span><span class="p">,</span>
+                <span class="s2">&quot;keep_sum_of_weights&quot;</span><span class="p">:</span> <span class="n">keep_sum_of_weights</span><span class="p">,</span>
+                <span class="s2">&quot;cell_weight_ratio&quot;</span><span class="p">:</span> <span class="n">combined</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
+                <span class="s2">&quot;training_sample_weights&quot;</span><span class="p">:</span> <span class="n">original_sample_weights</span><span class="p">,</span>
+                <span class="s2">&quot;training_target_weights&quot;</span><span class="p">:</span> <span class="n">original_target_weights</span><span class="p">,</span>
+                <span class="s2">&quot;sample_index&quot;</span><span class="p">:</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
+                <span class="s2">&quot;target_index&quot;</span><span class="p">:</span> <span class="n">target_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
+                <span class="s2">&quot;store_fit_metadata&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
     <span class="k">return</span> <span class="p">{</span>
         <span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="n">w</span><span class="p">,</span>
-        <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;poststratify&quot;</span><span class="p">},</span>
+        <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span>
     <span class="p">}</span></div>
 
+
+
+<span class="c1"># Private to ``balance``: callers should reach this through</span>
+<span class="c1"># ``BalanceFrame.predict_weights()`` rather than importing it directly.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_predict_weights_from_model</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">sample_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">sample_weights_full</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">target_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">target_weights</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">is_transfer</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reconstruct poststratification weights from a stored fit-time model dict.</span>
+
+<span class="sd">    Internal helper. The pure-math/model-driven core of</span>
+<span class="sd">    ``BalanceFrame.predict_weights()`` for poststratify — callers should</span>
+<span class="sd">    reach this through that public API rather than importing the helper</span>
+<span class="sd">    directly. It takes plain DataFrames and Series for the scoring sample</span>
+<span class="sd">    and target, plus the ``model`` dict persisted by :func:`poststratify`</span>
+<span class="sd">    when ``store_fit_metadata=True``, and replays the stored cell-weight</span>
+<span class="sd">    ratio surface on the scoring sample.</span>
+
+<span class="sd">    Two modes:</span>
+<span class="sd">    - ``is_transfer=False`` (in-place replay): the scoring frames must be</span>
+<span class="sd">      the same rows that were fit; ``training_sample_weights`` and</span>
+<span class="sd">      ``training_target_weights`` from ``model`` are used as the canonical</span>
+<span class="sd">      fit-time weights, and the normalization target is the raw weight</span>
+<span class="sd">      sum (replay is exact, no rescaling).</span>
+<span class="sd">    - ``is_transfer=True`` (``data=...`` transfer): the scoring frames are</span>
+<span class="sd">      a different sample/target. The stored cell ratios are applied to</span>
+<span class="sd">      the scoring sample&#39;s design weights, then rescaled to the scoring</span>
+<span class="sd">      target&#39;s total weight. A warning is emitted unconditionally</span>
+<span class="sd">      because the stored cell ratios encode the *training* target&#39;s</span>
+<span class="sd">      joint cell distribution; the scoring target&#39;s cell distribution</span>
+<span class="sd">      is NOT re-fit.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: Fitted poststratify model dict produced with</span>
+<span class="sd">            ``store_fit_metadata=True``.</span>
+<span class="sd">        sample_df: Scoring sample&#39;s covariate frame (full index,</span>
+<span class="sd">            pre-transform). Must contain every column listed in</span>
+<span class="sd">            ``model[&#39;variables_before_transformations&#39;]``.</span>
+<span class="sd">        sample_weights_full: Scoring sample&#39;s design weights aligned to</span>
+<span class="sd">            ``sample_df``&#39;s full index.</span>
+<span class="sd">        target_df: Scoring target&#39;s covariate frame (pre-transform).</span>
+<span class="sd">            Must contain every column listed in</span>
+<span class="sd">            ``model[&#39;variables_before_transformations&#39;]``.</span>
+<span class="sd">        target_weights: Scoring target&#39;s design weights aligned to</span>
+<span class="sd">            ``target_df``&#39;s full index.</span>
+<span class="sd">        is_transfer: ``True`` when called from</span>
+<span class="sd">            ``BalanceFrame.predict_weights(data=...)``; ``False`` for</span>
+<span class="sd">            in-place replay (``data=None``).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Predicted weights as a ``pd.Series`` with</span>
+<span class="sd">        ``sample_weights_full``&#39;s index. For ``na_action=&#39;drop&#39;``</span>
+<span class="sd">        poststratify models, rows dropped during scoring are returned as</span>
+<span class="sd">        ``NaN``.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If model metadata is missing/malformed, if the</span>
+<span class="sd">            scoring frames are missing required covariates, if scoring</span>
+<span class="sd">            rows fall in fit-time cells with zero mass (depending on</span>
+<span class="sd">            ``strict_matching``), if in-place replay is requested</span>
+<span class="sd">            without compatible fit-time design weights, or if transfer</span>
+<span class="sd">            is requested with data-dependent fitted transformations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">required</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;variables&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;variables_before_transformations&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;na_action&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;strict_matching&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;transformations&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;transformations_drop&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;weight_trimming_mean_ratio&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;weight_trimming_percentile&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;keep_sum_of_weights&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cell_weight_ratio&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">required</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">model</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify model is missing fit-time metadata &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">) for predict_weights(). &quot;</span>
+            <span class="s2">&quot;Call BalanceFrame.fit(method=&#39;poststratify&#39;) or run &quot;</span>
+            <span class="s2">&quot;poststratify(..., store_fit_metadata=True).&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">variables</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;variables&quot;</span><span class="p">)</span>
+    <span class="n">input_variables</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;variables_before_transformations&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">variables</span>
+    <span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify model has invalid &#39;variables&#39; metadata for &quot;</span>
+            <span class="s2">&quot;predict_weights().&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_variables</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">input_variables</span>
+    <span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify model has invalid &quot;</span>
+            <span class="s2">&quot;&#39;variables_before_transformations&#39; metadata for predict_weights().&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">ratio_series</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cell_weight_ratio&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ratio_series</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify model is missing cell-weight ratio metadata for &quot;</span>
+            <span class="s2">&quot;predict_weights().&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">sample_weights</span> <span class="o">=</span> <span class="n">sample_weights_full</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_transfer</span><span class="p">:</span>
+        <span class="n">training_sample_weights</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;training_sample_weights&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">training_sample_weights</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">training_sample_weights</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_weights_full</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="n">training_sample_weights</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">equals</span><span class="p">(</span><span class="n">sample_weights_full</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Poststratify predict_weights() requires compatible &quot;</span>
+                <span class="s2">&quot;fit-time sample design weights in model[&#39;training_sample_weights&#39;]. &quot;</span>
+                <span class="s2">&quot;Re-fit with BalanceFrame.fit(method=&#39;poststratify&#39;) and &quot;</span>
+                <span class="s2">&quot;store_fit_metadata=True.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">sample_weights</span> <span class="o">=</span> <span class="n">training_sample_weights</span>
+
+        <span class="n">training_target_weights</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;training_target_weights&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">training_target_weights</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">training_target_weights</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_weights</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="n">training_target_weights</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">equals</span><span class="p">(</span><span class="n">target_weights</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Poststratify predict_weights() requires compatible &quot;</span>
+                <span class="s2">&quot;fit-time target design weights in model[&#39;training_target_weights&#39;]. &quot;</span>
+                <span class="s2">&quot;Re-fit with BalanceFrame.fit(method=&#39;poststratify&#39;) and &quot;</span>
+                <span class="s2">&quot;store_fit_metadata=True.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">target_weights</span> <span class="o">=</span> <span class="n">training_target_weights</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">&quot;transformations_origin&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">model</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Poststratify predict_weights(data=...) requires &quot;</span>
+                <span class="s2">&quot;transformations_origin metadata to determine whether fitted &quot;</span>
+                <span class="s2">&quot;transformations are safe to replay. Re-fit with &quot;</span>
+                <span class="s2">&quot;BalanceFrame.fit(method=&#39;poststratify&#39;).&quot;</span>
+            <span class="p">)</span>
+        <span class="n">transformations_origin</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transformations_origin&quot;</span><span class="p">)</span>
+        <span class="n">balance_adjustment</span><span class="o">.</span><span class="n">_reject_data_dependent_transfer</span><span class="p">(</span>
+            <span class="n">transformations_origin</span><span class="p">,</span>
+            <span class="n">method_name</span><span class="o">=</span><span class="s2">&quot;poststratify&quot;</span><span class="p">,</span>
+            <span class="n">transformations_effective</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transformations&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify predict_weights(data=...): replaying fitted &quot;</span>
+            <span class="s2">&quot;poststratification cell ratios on a different sample is a &quot;</span>
+            <span class="s2">&quot;transfer operation, not an exact fit. The stored cell ratios &quot;</span>
+            <span class="s2">&quot;encode the *training* target&#39;s joint cell distribution; &quot;</span>
+            <span class="s2">&quot;applying them to a new sample only produces weights &quot;</span>
+            <span class="s2">&quot;calibrated to that *training* target, rescaled to the new &quot;</span>
+            <span class="s2">&quot;target&#39;s total weight. The new target&#39;s cell distribution &quot;</span>
+            <span class="s2">&quot;is NOT re-fit. Predictions are therefore only valid when &quot;</span>
+            <span class="s2">&quot;(a) the scoring sample&#39;s joint distribution over the &quot;</span>
+            <span class="s2">&quot;poststratification variables is similar to the training &quot;</span>
+            <span class="s2">&quot;sample&#39;s, AND (b) the scoring target&#39;s cell distribution is &quot;</span>
+            <span class="s2">&quot;similar to the training target&#39;s. Re-fit poststratify on &quot;</span>
+            <span class="s2">&quot;the scoring sample/target for exact cell-distribution &quot;</span>
+            <span class="s2">&quot;matching.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">input_variables</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">target_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Poststratify predict_weights() cannot find required covariate &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">&#39; in both sample and target.&quot;</span>
+            <span class="p">)</span>
+    <span class="n">sample_df</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">input_variables</span><span class="p">]</span>
+    <span class="n">target_df</span> <span class="o">=</span> <span class="n">target_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">input_variables</span><span class="p">]</span>
+
+    <span class="n">na_action</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;na_action&quot;</span><span class="p">,</span> <span class="s2">&quot;add_indicator&quot;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">na_action</span> <span class="o">==</span> <span class="s2">&quot;drop&quot;</span><span class="p">:</span>
+        <span class="n">sample_df</span><span class="p">,</span> <span class="n">sample_weights</span> <span class="o">=</span> <span class="n">balance_util</span><span class="o">.</span><span class="n">drop_na_rows</span><span class="p">(</span>
+            <span class="n">sample_df</span><span class="p">,</span> <span class="n">sample_weights</span><span class="p">,</span> <span class="s2">&quot;sample&quot;</span>
+        <span class="p">)</span>
+        <span class="n">target_df</span><span class="p">,</span> <span class="n">target_weights</span> <span class="o">=</span> <span class="n">balance_util</span><span class="o">.</span><span class="n">drop_na_rows</span><span class="p">(</span>
+            <span class="n">target_df</span><span class="p">,</span> <span class="n">target_weights</span><span class="p">,</span> <span class="s2">&quot;target&quot;</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">na_action</span> <span class="o">==</span> <span class="s2">&quot;add_indicator&quot;</span><span class="p">:</span>
+        <span class="n">sample_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">_safe_fillna_and_infer</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="s2">&quot;__NaN__&quot;</span><span class="p">))</span>
+        <span class="n">target_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">_safe_fillna_and_infer</span><span class="p">(</span><span class="n">target_df</span><span class="p">,</span> <span class="s2">&quot;__NaN__&quot;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify model has invalid na_action metadata &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">na_action</span><span class="si">}</span><span class="s2">&#39; for predict_weights().&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">sample_df</span><span class="p">,</span> <span class="n">_target_df</span> <span class="o">=</span> <span class="n">balance_adjustment</span><span class="o">.</span><span class="n">apply_transformations</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">target_df</span><span class="p">),</span>
+        <span class="n">transformations</span><span class="o">=</span><span class="n">model</span><span class="p">[</span><span class="s2">&quot;transformations&quot;</span><span class="p">],</span>
+        <span class="n">drop</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">model</span><span class="p">[</span><span class="s2">&quot;transformations_drop&quot;</span><span class="p">]),</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Poststratify transform output is missing stored variable &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">&#39; required for predict_weights().&quot;</span>
+            <span class="p">)</span>
+    <span class="n">sample_df</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">variables</span><span class="p">]</span>
+
+    <span class="n">ratio_name</span> <span class="o">=</span> <span class="s2">&quot;_cell_ratio&quot;</span>
+    <span class="k">while</span> <span class="n">ratio_name</span> <span class="ow">in</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">ratio_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ratio_name</span><span class="si">}</span><span class="s2">_tmp&quot;</span>
+    <span class="n">sample_with_ratio</span> <span class="o">=</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ratio_series</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">ratio_name</span><span class="p">),</span> <span class="n">on</span><span class="o">=</span><span class="n">variables</span><span class="p">)</span>
+    <span class="n">missing_ratio</span> <span class="o">=</span> <span class="n">sample_with_ratio</span><span class="p">[</span><span class="n">ratio_name</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">missing_ratio</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;strict_matching&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Poststratify predict_weights() found sample cells missing from &quot;</span>
+                <span class="s2">&quot;stored fit-time cell ratios. Re-fit with compatible cells or &quot;</span>
+                <span class="s2">&quot;fit with strict_matching=False.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify predict_weights() encountered sample cells missing from &quot;</span>
+            <span class="s2">&quot;stored fit-time cell ratios; assigning zero weights to those rows.&quot;</span>
+        <span class="p">)</span>
+        <span class="n">sample_with_ratio</span><span class="p">[</span><span class="n">ratio_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">_safe_fillna_and_infer</span><span class="p">(</span>
+            <span class="n">sample_with_ratio</span><span class="p">[</span><span class="n">ratio_name</span><span class="p">],</span> <span class="mi">0</span>
+        <span class="p">)</span>
+
+    <span class="n">raw_weights</span> <span class="o">=</span> <span class="n">sample_with_ratio</span><span class="p">[</span><span class="n">ratio_name</span><span class="p">]</span> <span class="o">*</span> <span class="n">sample_weights</span>
+    <span class="n">raw_total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">raw_weights</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="n">target_total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">target_weights</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="k">if</span> <span class="n">is_transfer</span> <span class="k">else</span> <span class="n">raw_total</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">target_total</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify predict_weights() cannot normalize to a non-finite &quot;</span>
+            <span class="s2">&quot;target weight total.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">raw_total</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">target_total</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Poststratify predict_weights() produced zero total raw weights, &quot;</span>
+            <span class="s2">&quot;so it cannot normalize to the requested target total. This usually &quot;</span>
+            <span class="s2">&quot;means every scoring row fell in a missing or zero-mass fit-time cell.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">trimmed</span> <span class="o">=</span> <span class="n">balance_adjustment</span><span class="o">.</span><span class="n">trim_weights</span><span class="p">(</span>
+        <span class="n">raw_weights</span><span class="p">,</span>
+        <span class="n">target_sum_weights</span><span class="o">=</span><span class="n">target_total</span><span class="p">,</span>
+        <span class="n">weight_trimming_mean_ratio</span><span class="o">=</span><span class="n">model</span><span class="p">[</span><span class="s2">&quot;weight_trimming_mean_ratio&quot;</span><span class="p">],</span>
+        <span class="n">weight_trimming_percentile</span><span class="o">=</span><span class="n">model</span><span class="p">[</span><span class="s2">&quot;weight_trimming_percentile&quot;</span><span class="p">],</span>
+        <span class="n">keep_sum_of_weights</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">model</span><span class="p">[</span><span class="s2">&quot;keep_sum_of_weights&quot;</span><span class="p">]),</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">na_action</span> <span class="o">==</span> <span class="s2">&quot;drop&quot;</span><span class="p">:</span>
+        <span class="n">predicted_full</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">sample_weights_full</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">trimmed</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">predicted_full</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">trimmed</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">trimmed</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="n">trimmed</span> <span class="o">=</span> <span class="n">predicted_full</span>
+    <span class="k">return</span> <span class="n">trimmed</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_variables_from_formula</span><span class="p">(</span>
+    <span class="n">sample_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">target_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">formula</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve a post-stratification variable list from formula snippets.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">formula</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`formula` must be a string or list of strings.&quot;</span><span class="p">)</span>
+
+    <span class="n">formulas</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">formula</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">formula</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">formula</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">formulas</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`formula` must contain at least one formula string.&quot;</span><span class="p">)</span>
+
+    <span class="n">common_columns</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">sample_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">target_df</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+    <span class="n">common_columns_ordered</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">sample_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">common_columns</span><span class="p">]</span>
+    <span class="n">variables</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">dot_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(?&lt;![A-Za-z0-9_])\.(?![A-Za-z0-9_])&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">formula_item</span> <span class="ow">in</span> <span class="n">formulas</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">formula_item</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Each element of `formula` must be a string.&quot;</span><span class="p">)</span>
+
+        <span class="n">item</span> <span class="o">=</span> <span class="n">formula_item</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Formula items must be non-empty strings.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Poststratify defines cells by the joint distribution of all selected</span>
+        <span class="c1"># variables. Additive (&#39;+&#39;) and mixed (&#39;*&#39;) operators would therefore</span>
+        <span class="c1"># behave identically to &#39;:&#39; and are rejected to prevent silent</span>
+        <span class="c1"># semantic confusion. Raking, unlike poststratify, operates on</span>
+        <span class="c1"># marginals and should accept &#39;+&#39; and &#39;*&#39; when it gains `formula=`.</span>
+        <span class="c1"># We check the user-provided RHS (post `~`, pre `.` expansion) so that</span>
+        <span class="c1"># our own &#39;+&#39; injection during dot expansion is not flagged.</span>
+        <span class="n">rhs_for_check</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;~&quot;</span> <span class="ow">in</span> <span class="n">item</span> <span class="k">else</span> <span class="n">item</span>
+        <span class="k">for</span> <span class="n">forbidden_op</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">forbidden_op</span> <span class="ow">in</span> <span class="n">rhs_for_check</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Poststratify formula operator &#39;</span><span class="si">{</span><span class="n">forbidden_op</span><span class="si">}</span><span class="s2">&#39; is not &quot;</span>
+                    <span class="s2">&quot;supported. Poststratify defines cells by the joint &quot;</span>
+                    <span class="s2">&quot;distribution of the specified variables, so &#39;+&#39; &quot;</span>
+                    <span class="s2">&quot;(additive) and &#39;*&#39; (main + interaction) would be &quot;</span>
+                    <span class="s2">&quot;semantically identical to &#39;:&#39; here. Use &#39;:&#39; (e.g., &quot;</span>
+                    <span class="s2">&quot;&#39;a:b:c&#39;), &#39;.&#39; (all common columns), &#39;-&#39; (exclude), or &quot;</span>
+                    <span class="s2">&quot;pass `variables=[...]`. Note: raking, which operates &quot;</span>
+                    <span class="s2">&quot;on marginals, will support &#39;+&#39; and &#39;*&#39; when it gains &quot;</span>
+                    <span class="s2">&quot;a `formula=` argument.&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">item</span> <span class="o">==</span> <span class="s2">&quot;.&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">common_columns_ordered</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+                    <span class="n">variables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">dot_pattern</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_columns_ordered</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot expand &#39;.&#39; in `formula` because sample and target share no columns.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">expanded</span> <span class="o">=</span> <span class="s2">&quot; + &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">common_columns_ordered</span><span class="p">)</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="n">dot_pattern</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">expanded</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+
+        <span class="n">formula_for_parse</span> <span class="o">=</span> <span class="n">item</span> <span class="k">if</span> <span class="s2">&quot;~&quot;</span> <span class="ow">in</span> <span class="n">item</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;~ </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">model_desc</span> <span class="o">=</span> <span class="n">ModelDesc</span><span class="o">.</span><span class="n">from_formula</span><span class="p">(</span><span class="n">formula_for_parse</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">model_desc</span><span class="o">.</span><span class="n">rhs_termlist</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">factor</span> <span class="ow">in</span> <span class="n">term</span><span class="o">.</span><span class="n">factors</span><span class="p">:</span>
+                <span class="n">code</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span> <span class="s2">&quot;code&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">factor</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">common_columns</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">code</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+                        <span class="n">variables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[A-Za-z_][A-Za-z0-9_]*&quot;</span><span class="p">,</span> <span class="n">code</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">code</span><span class="si">}</span><span class="s2">&#39; from `formula` is not present in both sample and target.&quot;</span>
+                    <span class="p">)</span>
+
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Unsupported poststratify formula term &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">code</span><span class="si">}</span><span class="s2">&#39;. Use raw column names joined by &#39;:&#39; &quot;</span>
+                    <span class="s2">&quot;(e.g., &#39;a:b&#39;) or pass `variables=[...]`.&quot;</span>
+                <span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Could not resolve poststratification variables from `formula`.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">variables</span>
 </pre></div>
 
             <div class="clearer"></div>
