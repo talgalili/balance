@@ -14,6 +14,7 @@ from balance.sample_class import Sample
 from balance.util import _assert_type
 from balance.utils.model_matrix import (
     _build_projected_model_matrix,
+    _stringify_categorical_values,
     build_design_matrix,
     build_model_matrix,
     dot_expansion,
@@ -138,6 +139,51 @@ class TestUtil(
         )
         self.assertEqual(x_matrix["model_matrix"], res)
         self.assertEqual(x_matrix["model_matrix_columns"], res.columns.tolist())
+
+        # Categorical levels with non-string values are stringified before patsy
+        # builds labels. This keeps interval category labels aligned with the
+        # equivalent object/string input representation.
+        # pyrefly: ignore [missing-attribute]
+        interval_series = pd.cut(
+            pd.Series([0.1, 0.4, 0.8]), [0, 0.25, 0.5, 1.0]
+        ).astype("category")
+        interval_df = pd.DataFrame({"a": interval_series})
+        x_matrix = build_model_matrix(interval_df, "a")
+        expected_interval_columns = [
+            f"a[{category}]" for category in interval_df["a"].cat.categories
+        ]
+        self.assertEqual(
+            x_matrix["model_matrix_columns"],
+            expected_interval_columns,
+        )
+        self.assertIsInstance(interval_df["a"].dtype, pd.CategoricalDtype)
+        self.assertTrue(
+            all(
+                isinstance(category, pd.Interval)
+                for category in interval_df["a"].cat.categories
+            )
+        )
+
+        # Stringifying values instead of renaming categories avoids pandas'
+        # uniqueness constraint when distinct category objects share the same
+        # string representation.
+        duplicate_stringified_df = pd.DataFrame(
+            {"a": pd.Categorical([1, "1"], categories=[1, "1", 2], ordered=True)}
+        )
+        stringified_duplicate = _stringify_categorical_values(
+            duplicate_stringified_df["a"]
+        )
+        self.assertTrue(stringified_duplicate.cat.ordered)
+        self.assertEqual(stringified_duplicate.cat.categories.tolist(), ["1", "2"])
+        x_matrix = build_model_matrix(duplicate_stringified_df, "a")
+        self.assertEqual(x_matrix["model_matrix_columns"], ["a[1]", "a[2]"])
+
+        self.assertRaisesRegex(
+            TypeError,
+            "CategoricalDtype",
+            _stringify_categorical_values,
+            pd.Series(["a", "b"]),
+        )
 
         # formula with factor_variables
         x_matrix = build_model_matrix(df, ".", factor_variables=["a"])

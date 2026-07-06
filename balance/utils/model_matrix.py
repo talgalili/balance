@@ -204,6 +204,75 @@ def process_formula(
     return desc
 
 
+def _stringify_categorical_values(series: pd.Series) -> pd.Series:
+    """Return a categorical series with string labels for patsy.
+
+    ``patsy`` uses ``repr``-like labels for some non-string categorical levels
+    (notably pandas ``Interval`` objects), which can make downstream column
+    names unnecessarily verbose and inconsistent with equivalent object/string
+    inputs. Converting the observed values to strings before ``dmatrix`` keeps
+    level labels stable.
+
+    The return value keeps categorical dtype so patsy can still see unused
+    levels after row filtering. When stringification is one-to-one, categories
+    are renamed directly. When distinct Python objects stringify to the same
+    value (for example ``1`` and ``"1"``), the values are stringified and then
+    rebuilt as a categorical series with the de-duplicated string category list;
+    this avoids pandas' category-uniqueness constraint while preserving the
+    intended level set as far as string labels can represent it.
+
+    Args:
+        series: A pandas Series with ``CategoricalDtype``. Missing values,
+            index, name, category order, and the categorical ``ordered`` flag
+            are preserved.
+
+    Returns:
+        A categorical Series whose category labels are strings. If multiple
+        original categories share the same string representation, the returned
+        categories are the first-seen de-duplicated string labels.
+
+    Examples:
+        >>> import pandas as pd
+        >>> intervals = pd.cut(pd.Series([0.1, 0.4]), [0, 0.25, 0.5])
+        >>> print("before:", type(intervals.cat.categories[0]).__name__)
+        before: Interval
+        >>> out = _stringify_categorical_values(intervals)
+        >>> print("after:", type(out.cat.categories[0]).__name__)
+        after: str
+        >>> out.cat.categories.tolist() == [str(x) for x in intervals.cat.categories]
+        True
+        >>> duplicate = pd.Series(
+        ...     pd.Categorical([1, "1"], categories=[1, "1", 2], ordered=True)
+        ... )
+        >>> out = _stringify_categorical_values(duplicate)
+        >>> out.cat.categories.tolist()
+        ['1', '2']
+        >>> out.cat.ordered
+        True
+    """
+    if not isinstance(series.dtype, pd.CategoricalDtype):
+        raise TypeError(
+            "_stringify_categorical_values expects a pandas Series with "
+            "CategoricalDtype"
+        )
+
+    stringified_categories = [str(category) for category in series.cat.categories]
+    if len(set(stringified_categories)) == len(stringified_categories):
+        return series.cat.rename_categories(stringified_categories)
+
+    values = series.astype(object)
+    missing = values.isna()
+    values.loc[~missing] = values.loc[~missing].map(str)
+    deduped_categories = list(dict.fromkeys(stringified_categories))
+    return pd.Series(
+        pd.Categorical(
+            values, categories=deduped_categories, ordered=series.cat.ordered
+        ),
+        index=series.index,
+        name=series.name,
+    )
+
+
 def build_model_matrix(
     df: pd.DataFrame,
     formula: str = ".",
@@ -254,10 +323,21 @@ def build_model_matrix(
             raise ValueError("Not all factor variables are contained in df")
 
     model_desc = process_formula(formula, variables, factor_variables)
-    # dmatrix cannot get Int64Dtype as data type. Hence converting all numeric columns to float64.
+    # Keep patsy-specific dtype coercions local to this call. ``model_matrix``
+    # may be called repeatedly with Sample-backed frames, and leaking the
+    # conversions below back to the caller can drop unused categorical levels
+    # needed by later calls (for example after ``add_na=False`` row drops).
+    coerced_columns: Dict[str, pd.Series] = {}
     for x in df.columns:
-        if (is_numeric_dtype(df[x])) and (not is_bool_dtype(df[x])):
-            df[x] = df[x].astype("float64")
+        if is_numeric_dtype(df[x]) and not is_bool_dtype(df[x]):
+            # dmatrix cannot get Int64Dtype as data type.
+            # Hence converting all numeric columns to float64.
+            coerced_columns[x] = df[x].astype("float64")
+        elif isinstance(df[x].dtype, pd.CategoricalDtype):
+            coerced_columns[x] = _stringify_categorical_values(df[x])
+
+    if coerced_columns:
+        df = df.assign(**coerced_columns)
 
     X_matrix = dmatrix(model_desc, data=df, return_type="dataframe")
     # Sorting the output in order to eliminate edge cases that cause column order to be stochastic
