@@ -12,6 +12,7 @@ import json
 import logging
 import math
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
+from functools import partial
 from numbers import Integral
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type
@@ -19,12 +20,62 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 import balance
 import pandas as pd
 from balance import __version__  # @manual
+from balance.adjustment import BALANCE_WEIGHTING_METHODS
 from balance.sample_class import Sample as balance_sample_cls  # @manual
 from balance.util import _float_or_none
 from sklearn.base import ClassifierMixin
 from sklearn.linear_model import LogisticRegression
 
 logger: logging.Logger = logging.getLogger(__package__)
+
+SUPPORTED_WEIGHTING_METHODS: Tuple[str, ...] = tuple(BALANCE_WEIGHTING_METHODS)
+
+
+def _non_empty_str_arg(value: Any, arg_name: str) -> str:
+    """Parse a required string CLI argument and reject empty values."""
+    if not isinstance(value, str):
+        raise ArgumentTypeError(f"{arg_name} must be a non-empty string")
+    stripped = value.strip()
+    if not stripped:
+        raise ArgumentTypeError(f"{arg_name} must be a non-empty string")
+    return stripped
+
+
+def _path_arg(value: Any, arg_name: str) -> Path:
+    """Parse a path CLI argument and reject empty values."""
+    return Path(_non_empty_str_arg(value, arg_name))
+
+
+def _supported_methods_help() -> str:
+    """Return the supported weighting methods as CLI help text."""
+    return ", ".join(SUPPORTED_WEIGHTING_METHODS)
+
+
+def _method_arg(value: Any) -> str:
+    """Parse and validate the CLI weighting method."""
+    method = _non_empty_str_arg(value, "--method")
+    if method not in SUPPORTED_WEIGHTING_METHODS:
+        raise ArgumentTypeError(f"--method must be one of: {_supported_methods_help()}")
+    return method
+
+
+def _csv_columns_arg(value: Any, arg_name: str) -> str:
+    """Parse a comma-separated column argument and preserve validation details."""
+    parsed = _non_empty_str_arg(value, arg_name)
+    try:
+        _parse_csv_columns_arg(parsed, arg_name)
+    except ValueError as exc:
+        raise ArgumentTypeError(str(exc)) from exc
+    return parsed
+
+
+def _single_character_arg(value: Any, arg_name: str) -> str:
+    """Parse a delimiter argument and ensure it is exactly one character."""
+    if not isinstance(value, str):
+        raise ArgumentTypeError(f"{arg_name} must be exactly one character")
+    if len(value) != 1:
+        raise ArgumentTypeError(f"{arg_name} must be exactly one character")
+    return value
 
 
 def _positive_int_arg(value: Any) -> int:
@@ -345,7 +396,7 @@ class BalanceCLI:
                 BalanceCLI(Namespace(method="ipw")).method()
                 # 'ipw'
         """
-        return self.args.method
+        return _method_arg(self.args.method)
 
     def sample_column(self) -> str:
         """Return the column indicating sample membership.
@@ -359,7 +410,7 @@ class BalanceCLI:
                 BalanceCLI(Namespace(sample_column="is_respondent")).sample_column()
                 # 'is_respondent'
         """
-        return self.args.sample_column
+        return _non_empty_str_arg(self.args.sample_column, "--sample_column")
 
     def id_column(self) -> str:
         """Return the identifier column name.
@@ -373,7 +424,7 @@ class BalanceCLI:
                 BalanceCLI(Namespace(id_column="id")).id_column()
                 # 'id'
         """
-        return self.args.id_column
+        return _non_empty_str_arg(self.args.id_column, "--id_column")
 
     def weight_column(self) -> str:
         """Return the weight column name.
@@ -387,7 +438,7 @@ class BalanceCLI:
                 BalanceCLI(Namespace(weight_column="weight")).weight_column()
                 # 'weight'
         """
-        return self.args.weight_column
+        return _non_empty_str_arg(self.args.weight_column, "--weight_column")
 
     def covariate_columns(self) -> List[str]:
         """Return the list of covariate column names.
@@ -560,7 +611,9 @@ class BalanceCLI:
                 BalanceCLI(Namespace(keep_row_column="keep")).keep_row_column()
                 # 'keep'
         """
-        return self.args.keep_row_column
+        if self.args.keep_row_column is not None:
+            return _non_empty_str_arg(self.args.keep_row_column, "--keep_row_column")
+        return None
 
     def has_outcome_columns(self) -> bool:
         """Return True when outcome columns are explicitly supplied.
@@ -1402,48 +1455,57 @@ def add_arguments_to_parser(parser: ArgumentParser) -> ArgumentParser:
             isinstance(parser, ArgumentParser)
             # True
     """
-    # TODO: add checks for validity of input (including None as input)
     parser.add_argument(
         "--input_file",
-        type=Path,
+        type=partial(_path_arg, arg_name="--input_file"),
         required=True,
         help="Path to input sample/target",
     )
     parser.add_argument(
         "--output_file",
-        type=Path,
+        type=partial(_path_arg, arg_name="--output_file"),
         required=True,
         help="Path to write output weights",
     )
     parser.add_argument(
         "--diagnostics_output_file",
-        type=Path,
+        type=partial(_path_arg, arg_name="--diagnostics_output_file"),
         required=False,
         help="Path to write adjustment diagnostics",
     )
     parser.add_argument(
-        "--method", default="ipw", help="Method to use for weighting [default=ipw]"
+        "--method",
+        type=_method_arg,
+        default="ipw",
+        help=f"Method to use for weighting: {_supported_methods_help()} [default=ipw]",
     )
     parser.add_argument(
         "--sample_column",
+        type=partial(_non_empty_str_arg, arg_name="--sample_column"),
         default="is_respondent",
-        help="Path to target population [default=is_respondent]",
+        help="Column indicating sample membership [default=is_respondent]",
     )
     parser.add_argument(
         "--id_column",
+        type=partial(_non_empty_str_arg, arg_name="--id_column"),
         default="id",
         help="Column that identifies units [default=id]",
     )
     parser.add_argument(
         "--weight_column",
+        type=partial(_non_empty_str_arg, arg_name="--weight_column"),
         default="weight",
         help="Column that identifies weights of samples [default=weight]",
     )
     parser.add_argument(
-        "--covariate_columns", required=True, help="Set of columns used for adjustment"
+        "--covariate_columns",
+        type=partial(_csv_columns_arg, arg_name="--covariate_columns"),
+        required=True,
+        help="Set of columns used for adjustment",
     )
     parser.add_argument(
         "--outcome_columns",
+        type=partial(_csv_columns_arg, arg_name="--outcome_columns"),
         required=False,
         default=None,
         help=(
@@ -1454,6 +1516,7 @@ def add_arguments_to_parser(parser: ArgumentParser) -> ArgumentParser:
     )
     parser.add_argument(
         "--covariate_columns_for_diagnostics",
+        type=partial(_csv_columns_arg, arg_name="--covariate_columns_for_diagnostics"),
         required=False,
         default=None,
         help="Set of columns used for diagnostics reporting (if not supplied the default is None, which means to use all columns from --covariate_columns)",
@@ -1478,12 +1541,13 @@ def add_arguments_to_parser(parser: ArgumentParser) -> ArgumentParser:
     )
     parser.add_argument(
         "--batch_columns",
+        type=partial(_csv_columns_arg, arg_name="--batch_columns"),
         required=False,
         help="Set of columns used to indicate batches of data",
     )
     parser.add_argument(
         "--keep_columns",
-        type=str,
+        type=partial(_csv_columns_arg, arg_name="--keep_columns"),
         required=False,
         help=(
             "Comma-separated columns to include in the output csv file. "
@@ -1492,27 +1556,27 @@ def add_arguments_to_parser(parser: ArgumentParser) -> ArgumentParser:
     )
     parser.add_argument(
         "--keep_row_column",
-        type=str,
+        type=partial(_non_empty_str_arg, arg_name="--keep_row_column"),
         required=False,
         help="Column indicating which rows we include in the output csv file",
     )
     parser.add_argument(
         "--sep_input_file",
-        type=str,
+        type=partial(_single_character_arg, arg_name="--sep_input_file"),
         required=False,
         default=",",
-        help="A 1 character for indicating the delimiter for the output file. If not supplied it defaults to a comma (,)",
+        help="A 1 character for indicating the delimiter for the input file. If not supplied it defaults to a comma (,)",
     )
     parser.add_argument(
         "--sep_output_file",
-        type=str,
+        type=partial(_single_character_arg, arg_name="--sep_output_file"),
         required=False,
         default=",",
         help="A 1 character for indicating the delimiter for the output file. If not supplied it defaults to a comma (,)",
     )
     parser.add_argument(
         "--sep_diagnostics_output_file",
-        type=str,
+        type=partial(_single_character_arg, arg_name="--sep_diagnostics_output_file"),
         required=False,
         default=",",
         help="A 1 character for indicating the delimiter for the diagnostics output file. If not supplied it defaults to a comma (,)",

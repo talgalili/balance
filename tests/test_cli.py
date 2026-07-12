@@ -1023,6 +1023,52 @@ class TestCli(
                 np.array(["ipw"]),
             )
 
+    def test_method_works_with_null(self) -> None:
+        """Test CLI functionality with the null adjustment method."""
+        input_dataset = pd.DataFrame(
+            {
+                "x": ["a", "b", "a", "b"],
+                "is_respondent": [1, 1, 0, 0],
+                "id": [1, 2, 3, 4],
+                "weight": [1.0, 2.0, 3.0, 4.0],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_file = os.path.join(temp_dir, "input.csv")
+            output_file = os.path.join(temp_dir, "weights_out.csv")
+            diagnostics_output_file = os.path.join(temp_dir, "diagnostics_out.csv")
+            input_dataset.to_csv(input_file, index=False)
+
+            args = make_parser().parse_args(
+                [
+                    "--input_file",
+                    input_file,
+                    "--output_file",
+                    output_file,
+                    "--diagnostics_output_file",
+                    diagnostics_output_file,
+                    "--covariate_columns",
+                    "x",
+                    "--method",
+                    "null",
+                ]
+            )
+
+            cli = BalanceCLI(args)
+            cli.update_attributes_for_main_used_by_adjust()
+            cli.main()
+
+            output = pd.read_csv(output_file)
+            diagnostics_output = pd.read_csv(diagnostics_output_file)
+            self.assertEqual(output["weight"].tolist(), [1.0, 2.0])
+            self.assertEqual(
+                diagnostics_output[diagnostics_output["metric"] == "adjustment_method"][
+                    "var"
+                ].values,
+                np.array(["null_adjustment"]),
+            )
+
     def test_method_works_with_rake(self) -> None:
         """Test CLI functionality with raking weighting method."""
         # pyrefly: ignore [bad-argument-type]
@@ -2458,3 +2504,143 @@ class TestCliParseColumnsNone(balance.testutil.BalanceTestCase):
 
         with self.assertRaisesRegex(ValueError, "cannot be None"):
             _parse_csv_columns_arg(None, "test_arg")
+
+
+class TestBalanceCLIParserInputValidation(balance.testutil.BalanceTestCase):
+    """Test parser-level validation for required CLI values."""
+
+    def _base_args(self) -> List[str]:
+        return [
+            "--input_file",
+            "in.csv",
+            "--output_file",
+            "out.csv",
+            "--covariate_columns",
+            "x",
+        ]
+
+    def test_parser_rejects_blank_required_paths_and_columns(self) -> None:
+        """Required path/column arguments must not be blank."""
+        cases = [
+            ("--input_file", "   "),
+            ("--output_file", ""),
+            ("--covariate_columns", "   "),
+            ("--sample_column", ""),
+            ("--id_column", "   "),
+            ("--weight_column", ""),
+        ]
+        for flag, value in cases:
+            with self.subTest(flag=flag):
+                args = self._base_args()
+                if flag in ("--input_file", "--output_file", "--covariate_columns"):
+                    args[args.index(flag) + 1] = value
+                else:
+                    args.extend([flag, value])
+                with self.assertRaises(SystemExit):
+                    make_parser().parse_args(args)
+
+    def test_parser_accepts_null_method(self) -> None:
+        """The CLI method validator accepts the core API's null adjustment."""
+        args = make_parser().parse_args(self._base_args() + ["--method", "null"])
+
+        self.assertEqual(args.method, "null")
+        self.assertEqual(BalanceCLI(args).method(), "null")
+
+    def test_parser_rejects_unsupported_method(self) -> None:
+        """Method must be one of the supported adjustment methods."""
+        with self.assertRaises(SystemExit):
+            make_parser().parse_args(self._base_args() + ["--method", "unknown"])
+
+    def test_method_help_lists_supported_methods(self) -> None:
+        """Method help is derived from the same method list used for validation."""
+        parser = make_parser()
+        method_action = next(
+            action for action in parser._actions if "--method" in action.option_strings
+        )
+
+        method_help = _assert_type(method_action.help, str)
+        for method in ("ipw", "cbps", "rake", "poststratify", "null"):
+            self.assertIn(method, method_help)
+
+    def test_help_text_describes_sample_column_and_input_separator(self) -> None:
+        """User-facing help describes column and separator arguments accurately."""
+        parser = make_parser()
+        actions_by_option = {
+            option: action
+            for action in parser._actions
+            for option in action.option_strings
+        }
+
+        sample_column_help = _assert_type(
+            actions_by_option["--sample_column"].help, str
+        )
+        self.assertIn(
+            "Column indicating sample membership",
+            sample_column_help,
+        )
+        sep_input_file_help = _assert_type(
+            actions_by_option["--sep_input_file"].help, str
+        )
+        self.assertIn("delimiter for the input file", sep_input_file_help)
+
+    def test_parser_rejects_invalid_separator_width(self) -> None:
+        """Separator arguments must be exactly one character."""
+        for flag, value in (
+            ("--sep_input_file", ""),
+            ("--sep_output_file", "::"),
+            ("--sep_diagnostics_output_file", "   "),
+        ):
+            with self.subTest(flag=flag):
+                with self.assertRaises(SystemExit):
+                    make_parser().parse_args(self._base_args() + [flag, value])
+
+    def test_parser_accepts_trimmed_method_and_tab_separator(self) -> None:
+        """Parser normalizes padded methods and preserves tab separators."""
+        args = make_parser().parse_args(
+            self._base_args() + ["--method", "  ipw  ", "--sep_input_file", "\t"]
+        )
+        self.assertEqual(args.method, "ipw")
+        self.assertEqual(args.sep_input_file, "\t")
+
+    def test_parser_rejects_blank_optional_column_inputs(self) -> None:
+        """Optional column inputs reject blank names at parse time."""
+        cases = [
+            ("--outcome_columns", ""),
+            ("--covariate_columns_for_diagnostics", "x,,y"),
+            ("--batch_columns", "   "),
+            ("--keep_columns", "x,"),
+            ("--keep_row_column", ""),
+        ]
+        for flag, value in cases:
+            with self.subTest(flag=flag):
+                with self.assertRaises(SystemExit):
+                    make_parser().parse_args(self._base_args() + [flag, value])
+
+    def test_parser_preserves_csv_column_error_details(self) -> None:
+        """Argparse errors include the detailed CSV-column validation reason."""
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+            make_parser().parse_args(
+                self._base_args() + ["--covariate_columns_for_diagnostics", "x,,y"]
+            )
+
+        self.assertIn(
+            "--covariate_columns_for_diagnostics must be a comma-separated list of non-empty column names",
+            stderr.getvalue(),
+        )
+
+    def test_direct_namespace_accessors_validate_like_parser(self) -> None:
+        """Direct Namespace usage gets the same validation as parser-created args."""
+        invalid_cases = [
+            ("method", Namespace(method="unknown")),
+            ("sample_column", Namespace(sample_column="")),
+            ("id_column", Namespace(id_column="   ")),
+            ("weight_column", Namespace(weight_column=None)),
+            ("covariate_columns", Namespace(covariate_columns="x,,y")),
+            ("keep_row_column", Namespace(keep_row_column="")),
+        ]
+        for accessor, namespace in invalid_cases:
+            with self.subTest(accessor=accessor):
+                cli = BalanceCLI(namespace)
+                with self.assertRaises((ArgumentTypeError, ValueError)):
+                    getattr(cli, accessor)()
