@@ -1,4 +1,4 @@
-# 0.22.0 (Unreleased - TBD)
+# 0.22.0 (2026-07-15)
 
 ## New Features
 
