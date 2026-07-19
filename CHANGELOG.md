@@ -76,6 +76,7 @@
 
 - Add the outcome-modelling design doc: [architecture_0_23_0.md](https://github.com/facebookresearch/balance/blob/main/docs/architecture/architecture_0_23_0.md).
 - Added docstring and statistical-method and notebook tutorial examples showing the new rake and poststratification `model_glance` diagnostics output.
+- Add an end-to-end [outcome-model tutorial](https://import-balance.org/docs/tutorials/outcome_model/) (`tutorials/balance_outcome_model.ipynb`) demonstrating the g-computation estimate `μ̂_OM` vs the IPW estimate `μ̂_IPW`, a bootstrap confidence interval, and train/holdout transfer via `set_fitted_outcome_model`.
 
 ## Tests
 
