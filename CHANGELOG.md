@@ -1,11 +1,16 @@
 # 0.23.0 (unreleased)
 
+## Breaking Changes
+
+- **Breaking:** the previously-inert `predicted_outcome_columns` parameter (`Sample.from_frame` / `SampleFrame.from_frame` / `SampleFrame._create`) and the `SampleFrame.predicted_outcome_columns` property are renamed to `outcomes_hat_columns` (internal `_column_roles` key `"predicted"` → `"outcomes_hat"`). The old names are removed outright with no alias — the role was reserved scaffolding, never populated or consumed, so no migration is provided.
+
 ## New Features
 
 - Diagnostics now include compact model-glance rows for rake and poststratification adjustments, covering rake convergence metadata and persisted poststratification matching-cell metadata when available.
 
 ## Documentation
 
+- Add the outcome-modelling design doc: [architecture_0_23_0.md](https://github.com/facebookresearch/balance/blob/main/docs/architecture/architecture_0_23_0.md).
 - Added docstring and statistical-method and notebook tutorial examples showing the new rake and poststratification `model_glance` diagnostics output.
 
 ## Tests
