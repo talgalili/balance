@@ -439,6 +439,9 @@ def weighted_r2(
         np.asarray(y_pred, dtype=float),
         np.asarray(w, dtype=float),
     )
+    if len(y_true) == 0:
+        # Every row was NaN/inf in some input; R² is undefined for empty input.
+        return float("nan")
     _check_weights_are_valid(pd.Series(w))
 
     y_bar = weighted_mean(pd.Series(y_true), pd.Series(w)).iloc[0]

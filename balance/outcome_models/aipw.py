@@ -99,6 +99,16 @@ def aipw_point_estimate(
     Returns:
         Dict[str, float]: ``{outcome_column: μ̂_DR}``.
     """
+    # predict_outcome scores rows positionally and the residual term below
+    # indexes into np.asarray(...) of the outcomes/weights positionally, so a
+    # caller whose (already row-aligned) frames carry mismatched or shuffled
+    # index LABELS must not be able to silently misalign Y against ĝ(X_S).
+    # Normalising the index here is a no-op for the common already-aligned path
+    # (row order is untouched); it only guards against index-based drift.
+    outcomes = outcomes.reset_index(drop=True)
+    if isinstance(sample_weight, pd.Series):
+        sample_weight = sample_weight.reset_index(drop=True)
+
     outcome_columns: List[str] = [str(c) for c in model["outcome_columns"]]
     preds_sample = predict_outcome(model, sample_covars)
     preds_target = predict_outcome(model, target_covars)
@@ -112,11 +122,24 @@ def aipw_point_estimate(
         y = np.asarray(outcomes[col], dtype=float)
         yhat_sample = np.asarray(preds_sample[col], dtype=float)
 
+        observed = ~np.isnan(y)
+        if not observed.any():
+            # No responder has an observed outcome, so the residual mean is
+            # undefined (weighted_mean of an empty array). Emit NaN rather than
+            # computing an undefined augmentation.
+            logger.warning(
+                "aipw_point_estimate: outcome column %r has no observed "
+                "(non-NaN) responder outcomes; the residual augmentation is "
+                "undefined, so μ̂_DR is set to NaN for this column.",
+                col,
+            )
+            result[col] = float("nan")
+            continue
+
         mu_om_target = float(
             weighted_mean(pd.Series(preds_target[col]), target_weight).iloc[0]
         )
 
-        observed = ~np.isnan(y)
         residuals = y[observed] - yhat_sample[observed]
         residual_weight = (
             None if sample_weight_arr is None else sample_weight_arr[observed]

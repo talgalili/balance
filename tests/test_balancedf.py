@@ -4390,6 +4390,9 @@ class TestBalanceDFOutcomesHat(BalanceTestCase):
         means = _assert_type(bf.outcomes_hat()).mean()
         self.assertIn("self", means.index)
         self.assertIn("target", means.index)
+        # The responder carries no outcomes_hat, so its "self" row must be NaN —
+        # not 0.0 (weighted_mean sums the all-NaN responder column as 0).
+        self.assertTrue(np.isnan(means.loc["self", "happiness_hat"]))
         preds = bf.predict_outcomes(on="target", populate=False)
         w_t = _assert_type(bf._sf_target).weight_series
         expected = float(np.average(preds["happiness_hat"], weights=w_t))
@@ -4659,6 +4662,42 @@ class TestBalanceDFOutcomesHat(BalanceTestCase):
         )
         bf = BalanceFrame(sample=resp, target=tgt)
         bf.fit_outcome_model(model=LinearRegression(), weighted=False)
+        bf.predict_outcomes(on="target")
+        text = _assert_type(bf.outcomes_hat()).summary()
+        self.assertIn("not doubly robust", text)
+        self.assertNotIn("doubly robust w.r.t.", text)
+
+    def test_summary_linear_weighted_uniform_weights_is_not_dr(self) -> None:
+        """weighted=True but all-equal fit weights -> not DR (uninformative weighting)."""
+        from sklearn.linear_model import LinearRegression
+
+        rng = np.random.default_rng(32)
+        n = 50
+        age_r = rng.normal(50, 10, n)
+        resp = SampleFrame.from_frame(
+            pd.DataFrame(
+                {
+                    "id": [str(i) for i in range(n)],
+                    "age": age_r,
+                    "happiness": 2.0 * age_r + rng.normal(0, 1, n),
+                    "weight": np.ones(n),  # constant (uniform) weights
+                }
+            ),
+            outcome_columns=["happiness"],
+        )
+        tgt = SampleFrame.from_frame(
+            pd.DataFrame(
+                {
+                    "id": [str(i) for i in range(n, 2 * n)],
+                    "age": rng.normal(55, 10, n),
+                    "weight": np.ones(n),
+                }
+            )
+        )
+        bf = BalanceFrame(sample=resp, target=tgt)
+        # weighted=True, but the fit weights are constant -> WLS collapses to OLS,
+        # so the DR-w.r.t.-weights claim must NOT be made.
+        bf.fit_outcome_model(model=LinearRegression(), weighted=True)
         bf.predict_outcomes(on="target")
         text = _assert_type(bf.outcomes_hat()).summary()
         self.assertIn("not doubly robust", text)

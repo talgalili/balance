@@ -2452,6 +2452,19 @@ class TestBalance_weighted_stats(
             weighted_r2(y_true_ext, y_pred_ext, w=w_ext), expected, places=12
         )
 
+    def test_weighted_r2_all_rows_dropped_returns_nan(self) -> None:
+        """If every row is NaN/inf in some input, R² is undefined -> NaN."""
+        from balance.stats_and_plots.weighted_stats import weighted_r2
+
+        # y_true all NaN -> rm_mutual_nas drops every row -> empty -> NaN
+        # (not 1.0, which the SS_tot == 0 branch would otherwise return).
+        result = weighted_r2(
+            pd.Series([np.nan, np.nan]),
+            pd.Series([1.0, 2.0]),
+            w=pd.Series([1.0, 1.0]),
+        )
+        self.assertTrue(np.isnan(result))
+
 
 class TestBalance_weighted_comparisons_stats(
     balance.testutil.BalanceTestCase,

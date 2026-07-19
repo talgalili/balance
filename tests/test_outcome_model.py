@@ -206,7 +206,11 @@ class TestFitOutcomeModel(balance.testutil.BalanceTestCase):
             covars, outcomes, sample_weight=w_skewed, model=LinearRegression()
         )
         self.assertTrue(m_uniform["weighted"])
-        self.assertFalse(m_uniform["fit_weight"]["uniform"])
+        # fit_weight["uniform"] reflects the ACTUAL weight vector, not just
+        # weighted=: w_uniform is all-ones (uniform), w_skewed is not.
+        self.assertTrue(m_uniform["fit_weight"]["uniform"])
+        self.assertTrue(m_skewed["weighted"])
+        self.assertFalse(m_skewed["fit_weight"]["uniform"])
 
         # Uniform fit predicts near the overall mean (~50); the a-weighted fit is
         # pulled toward group a's mean (~0).
@@ -476,6 +480,21 @@ class TestPredictOutcome(balance.testutil.BalanceTestCase):
         preds = predict_outcome(model, covars_T)["happiness"]
         self.assertEqual(len(preds), len(covars_T))
         self.assertTrue(np.all(np.isfinite(preds)))
+
+    def test_rejects_non_outcome_model_dict(self) -> None:
+        """A malformed / non-outcome-model dict raises a clear ValueError (not a
+        bare KeyError) — both a wrong-method dict and one missing 'fit'."""
+        covars_R, _, _ = _make_regression_data()
+        with self.assertRaisesRegex(
+            ValueError,
+            "predict_outcome expected a model dict from fit_outcome_model",
+        ):
+            predict_outcome({"not": "a model"}, covars_R)
+        with self.assertRaisesRegex(
+            ValueError,
+            "predict_outcome expected a model dict from fit_outcome_model",
+        ):
+            predict_outcome({"method": "outcome_model"}, covars_R)
 
 
 class TestOutcomeModelDictContract(balance.testutil.BalanceTestCase):

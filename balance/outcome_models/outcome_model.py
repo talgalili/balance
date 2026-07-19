@@ -473,6 +473,75 @@ def _validate_classifier_outcome(
         )
 
 
+def _fit_and_evaluate_outcome_column(
+    estimator: Any,
+    fit_matrix: Any,
+    y_series: pd.Series,
+    outcome_col: str,
+    *,
+    weighted: bool,
+    sample_weight_arr: np.ndarray | None,
+    calibrate: bool,
+    is_clf: bool,
+) -> tuple[Any, str, Dict[str, Any]]:
+    """Fit a single outcome column and return (fitted_estimator, pred_kind, perf).
+
+    Handles classifier validation, calibration wrapping, weighted vs unweighted
+    fitting, and in-sample performance evaluation for one outcome column.
+    """
+    # Densify per-estimator if this estimator needs it but the shared matrix
+    # is still sparse (e.g. a boosting learner mixed with a linear one).
+    estimator_matrix = fit_matrix
+    if _needs_dense(estimator) and issparse(estimator_matrix):
+        estimator_matrix = _convert_to_dense_array(estimator_matrix)
+
+    y_values = y_series.to_numpy()
+    if is_clf:
+        _validate_classifier_outcome(y_series, outcome_col)
+        from sklearn.base import is_classifier
+
+        if not is_classifier(estimator):
+            raise ValueError(
+                f"outcome column {outcome_col!r} is discrete (binary), so it "
+                f"needs a classifier, but the resolved estimator "
+                f"{type(estimator).__name__} is a regressor. Pass a classifier "
+                f"(e.g. model={{'_discrete': <classifier>, '_continuous': "
+                f"<regressor>}} for mixed outcomes), or use model='auto'."
+            )
+    if weighted and not has_fit_parameter(estimator, "sample_weight"):
+        raise TypeError(
+            f"weighted=True, but the estimator for outcome {outcome_col!r} "
+            f"({type(estimator).__name__}) does not accept `sample_weight` in "
+            "its fit(). Pass weighted=False (unweighted g-computation) or use "
+            "an estimator that supports sample weights."
+        )
+    if is_clf and calibrate:
+        from sklearn.calibration import CalibratedClassifierCV
+
+        estimator = CalibratedClassifierCV(estimator)
+
+    if weighted:
+        estimator.fit(estimator_matrix, y_values, sample_weight=sample_weight_arr)
+    else:
+        estimator.fit(estimator_matrix, y_values)
+
+    perf_weight = (
+        sample_weight_arr if sample_weight_arr is not None else np.ones(len(y_values))
+    )
+    if is_clf:
+        proba = _predict_proba_class1(estimator, estimator_matrix)
+        pred_kind = "proba"
+        perf = _classifier_perf(y_values.astype(float), proba, perf_weight)
+    else:
+        y_hat = np.asarray(estimator.predict(estimator_matrix), dtype=float)
+        pred_kind = "regression"
+        perf = {
+            "r2": weighted_r2(y_values.astype(float), y_hat, perf_weight),
+            "n": int(len(y_values)),
+        }
+    return estimator, pred_kind, perf
+
+
 def fit_outcome_model(
     covars_df: pd.DataFrame,
     outcomes_df: pd.DataFrame,
@@ -652,68 +721,34 @@ def fit_outcome_model(
                     "(one-hot fallback) or use_model_matrix=True, or upgrade "
                     "scikit-learn."
                 )
-        # Densify per-estimator if this estimator needs it but the shared matrix
-        # is still sparse (e.g. a boosting learner mixed with a linear one).
-        estimator_matrix = fit_matrix
-        if _needs_dense(estimator) and issparse(estimator_matrix):
-            estimator_matrix = _convert_to_dense_array(estimator_matrix)
 
-        y_values = y_series.to_numpy()
-        is_clf = _is_discrete_series(y_series)
-        if is_clf:
-            _validate_classifier_outcome(y_series, outcome_col)
-            from sklearn.base import is_classifier
-
-            if not is_classifier(estimator):
-                raise ValueError(
-                    f"outcome column {outcome_col!r} is discrete (binary), so it "
-                    f"needs a classifier, but the resolved estimator "
-                    f"{type(estimator).__name__} is a regressor. Pass a classifier "
-                    f"(e.g. model={{'_discrete': <classifier>, '_continuous': "
-                    f"<regressor>}} for mixed outcomes), or use model='auto'."
-                )
-        if weighted and not has_fit_parameter(estimator, "sample_weight"):
-            raise TypeError(
-                f"weighted=True, but the estimator for outcome {outcome_col!r} "
-                f"({type(estimator).__name__}) does not accept `sample_weight` in "
-                "its fit(). Pass weighted=False (unweighted g-computation) or use "
-                "an estimator that supports sample weights."
-            )
-        if is_clf and calibrate:
-            from sklearn.calibration import CalibratedClassifierCV
-
-            estimator = CalibratedClassifierCV(estimator)
-
-        if weighted:
-            estimator.fit(estimator_matrix, y_values, sample_weight=sample_weight_arr)
-        else:
-            estimator.fit(estimator_matrix, y_values)
-        fit[outcome_col] = estimator
-
-        perf_weight = (
-            sample_weight_arr
-            if sample_weight_arr is not None
-            else np.ones(len(y_values))
+        fitted_estimator, pred_kind, col_perf = _fit_and_evaluate_outcome_column(
+            estimator,
+            fit_matrix,
+            y_series,
+            outcome_col,
+            weighted=weighted,
+            sample_weight_arr=sample_weight_arr,
+            calibrate=calibrate,
+            is_clf=outcome_is_discrete[outcome_col],
         )
-        if is_clf:
-            proba = _predict_proba_class1(estimator, estimator_matrix)
-            prediction_kind[outcome_col] = "proba"
-            perf[outcome_col] = _classifier_perf(
-                y_values.astype(float), proba, perf_weight
-            )
-        else:
-            y_hat = np.asarray(estimator.predict(estimator_matrix), dtype=float)
-            prediction_kind[outcome_col] = "regression"
-            perf[outcome_col] = {
-                "r2": weighted_r2(y_values.astype(float), y_hat, perf_weight),
-                "n": int(len(y_values)),
-            }
+        fit[outcome_col] = fitted_estimator
+        prediction_kind[outcome_col] = pred_kind
+        perf[outcome_col] = col_perf
 
     # TODO (AIPW/DR seam): a doubly-robust (AIPW) estimator will combine these
     # predictions with the propensity weights; it will need the responder
     # residuals Y - ĝ(X) and, ideally, CROSS-FITTED (out-of-fold) ĝ to avoid
     # own-observation optimism. Don't lock this stored model into in-sample-only
     # predictions when adding DR.
+    # A weighted linear+intercept fit is doubly robust w.r.t. the weights only
+    # when the weights are genuinely non-uniform; a constant weight vector is
+    # uninformative (WLS collapses to OLS). Record the actual uniformity so the
+    # scoped-DR summary() does not over-claim for all-equal weights.
+    if weighted and sample_weight_arr is not None:
+        fit_weight_uniform = bool(np.allclose(sample_weight_arr, sample_weight_arr[0]))
+    else:
+        fit_weight_uniform = True
     return {
         "method": "outcome_model",
         "fit": fit,
@@ -726,7 +761,7 @@ def fit_outcome_model(
         "transformations": transformations,
         "fit_matrix_type": stored_matrix_type,
         "weighted": weighted,
-        "fit_weight": {"column": fit_weight_column, "uniform": not weighted},
+        "fit_weight": {"column": fit_weight_column, "uniform": fit_weight_uniform},
         "prediction_kind": prediction_kind,
         "calibrated": bool(calibrate)
         and any(type(e).__name__ == "CalibratedClassifierCV" for e in fit.values()),
@@ -824,7 +859,19 @@ def predict_outcome(
         preds = predict_outcome(model, covars_T)
         preds["happiness"].shape
         # (5,)
+
+    Raises:
+        ValueError: If ``model`` is not an outcome-model dict from
+            :func:`fit_outcome_model` (missing ``method="outcome_model"`` or the
+            ``"fit"`` key).
     """
+    if model.get("method") != "outcome_model" or "fit" not in model:
+        raise ValueError(
+            "predict_outcome expected a model dict from fit_outcome_model() "
+            "(with method='outcome_model' and a 'fit' key); got "
+            f"method={model.get('method')!r} and keys "
+            f"{sorted(map(str, model.keys()))}."
+        )
     matrix = _build_replay_matrix(model, new_covars_df)
     fit: Dict[str, Any] = model["fit"]
     prediction_kind: Dict[str, str] = model.get("prediction_kind", {})

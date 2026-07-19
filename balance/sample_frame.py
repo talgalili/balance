@@ -37,6 +37,32 @@ def _is_float64_dtype(series: pd.Series) -> bool:
     return series.dtype == np.dtype("float64")
 
 
+def _validate_no_column_role_overlap(
+    *,
+    covars: list[str],
+    outcomes: list[str],
+    outcomes_hat: list[str],
+    ignored: list[str],
+) -> None:
+    """Raise ValueError if any column appears in more than one role."""
+    role_to_columns: dict[str, list[str]] = {
+        "covars": covars,
+        "outcomes": outcomes,
+        "outcomes_hat": outcomes_hat,
+        "ignored": ignored,
+    }
+    roles = list(role_to_columns.keys())
+    for i in range(len(roles)):
+        for j in range(i + 1, len(roles)):
+            role_a, role_b = roles[i], roles[j]
+            overlap = set(role_to_columns[role_a]) & set(role_to_columns[role_b])
+            if overlap:
+                raise ValueError(
+                    f"Column(s) {sorted(overlap)!r} appear in both '{role_a}' and "
+                    f"'{role_b}' roles. Each column must have exactly one role."
+                )
+
+
 class SampleFrame:
     """A DataFrame container with explicit column-role metadata.
 
@@ -142,7 +168,7 @@ class SampleFrame:
         if outcome_model is None:
             new_instance._outcome_model = None
         else:
-            fit = outcome_model["fit"]
+            fit = outcome_model["fit"].copy()
             new_instance._outcome_model = {
                 key: (fit if key == "fit" else deepcopy(value, memo))
                 for key, value in outcome_model.items()
@@ -448,22 +474,12 @@ class SampleFrame:
                 )
 
         # --- Column role overlap validation ---
-        role_to_columns: dict[str, list[str]] = {
-            "covars": covar_list,
-            "outcomes": outcome_list or [],
-            "outcomes_hat": outcomes_hat_list or [],
-            "ignored": ignore_list or [],
-        }
-        roles = list(role_to_columns.keys())
-        for i in range(len(roles)):
-            for j in range(i + 1, len(roles)):
-                role_a, role_b = roles[i], roles[j]
-                overlap = set(role_to_columns[role_a]) & set(role_to_columns[role_b])
-                if overlap:
-                    raise ValueError(
-                        f"Column(s) {sorted(overlap)!r} appear in both '{role_a}' and "
-                        f"'{role_b}' roles. Each column must have exactly one role."
-                    )
+        _validate_no_column_role_overlap(
+            covars=covar_list,
+            outcomes=outcome_list or [],
+            outcomes_hat=outcomes_hat_list or [],
+            ignored=ignore_list or [],
+        )
 
         # M4: weight column must not overlap with outcome columns
         if outcome_list and weight_column in outcome_list:
@@ -1792,6 +1808,20 @@ class SampleFrame:
         # different frame via data= (whose row index would misalign onto self).
         if populate is None:
             populate = data is None
+
+        # populate=True writes predictions (indexed like the scored frame) onto
+        # THIS frame via add_outcomes_hat_column, which assigns equal-length
+        # values positionally. If `data` has this frame's length but a different
+        # row index/order that would silently misassign, so require an exact
+        # index match when persisting a different frame's predictions.
+        if populate and data is not None and not self._df.index.equals(data._df.index):
+            raise ValueError(
+                "predict_outcomes(data=..., populate=True) requires `data` to have "
+                "the same row index as this frame; otherwise the predictions "
+                "(indexed like `data`) would be misassigned onto this frame's rows. "
+                "Pass populate=False and use the returned predictions, or attach "
+                "them to `data` via data.add_outcomes_hat_column(...)."
+            )
 
         source: SampleFrame = data if data is not None else self
         covars = source.df_covars

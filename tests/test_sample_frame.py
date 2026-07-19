@@ -679,6 +679,46 @@ class TestSampleFrameDunderMethods(BalanceTestCase):
         sf2._column_roles["covars"].append("another")
         self.assertNotIn("another", sf._column_roles["covars"])
 
+    def test_deepcopy_outcome_model_fit_dict_is_independent(self) -> None:
+        """deepcopy shallow-copies the outcome model's ``fit`` mapping: a distinct
+        dict container whose estimator VALUES are shared by identity, so mutating
+        one frame's ``fit`` dict cannot leak into the other."""
+        import copy
+
+        from sklearn.linear_model import LinearRegression
+
+        df = pd.DataFrame(
+            {
+                "id": [1, 2, 3, 4, 5, 6],
+                "x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+                "y": [2.0, 4.1, 5.9, 8.2, 9.8, 12.1],
+                "weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            }
+        )
+        sf = SampleFrame.from_frame(df, outcome_columns=["y"])
+        sf.fit_outcome_model(model=LinearRegression())
+
+        sf2 = copy.deepcopy(sf)
+        orig_model = sf._outcome_model
+        copy_model = sf2._outcome_model
+        assert orig_model is not None
+        assert copy_model is not None
+        orig_fit = orig_model["fit"]
+        copy_fit = copy_model["fit"]
+
+        # (a) The two ``fit`` mappings are distinct container objects ...
+        self.assertIsNot(copy_fit, orig_fit)
+        # (b) ... but each fitted estimator VALUE is shared by identity.
+        self.assertCountEqual(list(copy_fit), list(orig_fit))
+        for col in orig_fit:
+            self.assertIs(copy_fit[col], orig_fit[col])
+
+        # (c) Mutating the copy's ``fit`` mapping does not affect the original's.
+        copy_fit["_injected"] = None
+        self.assertNotIn("_injected", orig_fit)
+        del copy_fit["y"]
+        self.assertIn("y", orig_fit)
+
 
 class TestSampleFrameEdgeCases(BalanceTestCase):
     def test_from_frame_zero_rows(self) -> None:
@@ -1709,6 +1749,27 @@ class TestSampleFrameFitOutcomeModel(BalanceTestCase):
         # Predictions align to the OTHER frame's covariate rows.
         self.assertEqual(len(result), 10)
         self.assertEqual(list(result.columns), ["happiness_hat"])
+
+    def test_predict_outcomes_data_populate_true_requires_matching_index(self) -> None:
+        # Persisting a different frame's predictions onto self is only safe when
+        # the row indices match exactly (add_outcomes_hat_column assigns equal-
+        # length values positionally, so a same-length/different-index frame
+        # would silently misalign).
+        sf = self._make_sf()
+        sf.fit_outcome_model(model="auto")
+
+        # Same length, DIFFERENT row index -> must raise.
+        mismatched = self._make_sf()
+        mismatched._df.index = pd.RangeIndex(1000, 1000 + len(mismatched._df))
+        with self.assertRaises(ValueError) as ctx:
+            sf.predict_outcomes(data=mismatched, populate=True)
+        self.assertIn("same row index", str(ctx.exception))
+
+        # Matching row index -> allowed (persists onto self).
+        aligned = self._make_sf()
+        sf.predict_outcomes(data=aligned, populate=True)
+        assert sf.df_outcomes_hat is not None
+        self.assertIn("happiness_hat", sf.df_outcomes_hat.columns)
 
     def test_binary_outcome_predict_proba(self) -> None:
         sf = self._make_sf(binary=True)

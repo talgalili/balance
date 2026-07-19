@@ -2968,7 +2968,18 @@ class BalanceDFOutcomesHat(BalanceDF):
         """
         if on_linked_samples:
             self._raise_if_target_unpopulated()
-        return super().mean(on_linked_samples=on_linked_samples, **kwargs)
+        out = super().mean(on_linked_samples=on_linked_samples, **kwargs)
+        # __init__ builds an all-NaN responder Ŷ frame when only a linked source
+        # (the target) carries outcomes_hat; weighted_mean sums those NaNs as 0,
+        # so the "self" row would read as 0.0 rather than NaN. Force it back to NaN
+        # so an empty responder can't masquerade as a real in-sample estimate.
+        if (
+            on_linked_samples
+            and self._sample._outcomes_hat_columns is None
+            and "self" in out.index
+        ):
+            out.loc["self", :] = np.nan
+        return out
 
     def _require_fitted_balanceframe_with_target(
         self: "BalanceDFOutcomesHat",

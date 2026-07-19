@@ -136,6 +136,63 @@ class AipwTest(balance.testutil.BalanceTestCase):
         )
         self.assertAlmostEqual(float(st.aipw()["y"]), pure["y"], places=10)
 
+    def test_pure_function_is_index_independent(self) -> None:
+        """μ̂_DR is unchanged when the (already row-aligned) sample covariates,
+        outcomes, and weights carry a shuffled, non-default index — the residual
+        must not silently misalign Y against ĝ(X_S)."""
+        sample_df, target_df = _make_aipw_fixture()
+        model = _fitted_frame(sample_df, target_df).outcome_model
+        assert model is not None
+
+        sample_covars = sample_df[["x1", "x2"]]
+        outcomes = sample_df[["y"]]
+        sample_weight = sample_df["weight"]
+        target_covars = target_df[["x1", "x2"]]
+        target_weight = target_df["weight"]
+
+        aligned = aipw_point_estimate(
+            sample_covars,
+            outcomes,
+            sample_weight,
+            target_covars,
+            target_weight,
+            model,
+        )
+
+        # Relabel the sample inputs with a shuffled, non-default index WITHOUT
+        # reordering rows; a caller whose frames merely carry odd index labels
+        # must get the identical estimate.
+        shuffled_index = pd.Index(np.random.default_rng(0).permutation(len(sample_df)))
+        shuffled = aipw_point_estimate(
+            sample_covars.set_axis(shuffled_index, axis=0),
+            outcomes.set_axis(shuffled_index, axis=0),
+            sample_weight.set_axis(shuffled_index),
+            target_covars,
+            target_weight,
+            model,
+        )
+        self.assertAlmostEqual(aligned["y"], shuffled["y"], places=12)
+
+    def test_all_nan_outcome_column_returns_nan_and_warns(self) -> None:
+        """A column with no observed responder outcome -> NaN μ̂_DR + a WARNING."""
+        sample_df, target_df = _make_aipw_fixture()
+        model = _fitted_frame(sample_df, target_df).outcome_model
+        assert model is not None
+
+        outcomes = sample_df[["y"]].copy()
+        outcomes["y"] = np.nan  # no observed (non-NaN) responder outcome
+        with self.assertLogs("balance", level="WARNING") as cm:
+            result = aipw_point_estimate(
+                sample_df[["x1", "x2"]],
+                outcomes,
+                sample_df["weight"],
+                target_df[["x1", "x2"]],
+                target_df["weight"],
+                model,
+            )
+        self.assertTrue(np.isnan(result["y"]))
+        self.assertTrue(any("no observed" in m for m in cm.output))
+
     def test_uniform_weights_reduces_to_om_and_warns(self) -> None:
         sample_df, target_df = _make_aipw_fixture()
         sample_df["weight"] = 1.0  # uniform -> no weighting fitted
