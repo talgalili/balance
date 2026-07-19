@@ -18,6 +18,7 @@ class hierarchy.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sized
 from typing import Any
 
 import numpy as np
@@ -159,6 +160,151 @@ def _concat_metric_val_var(
     # pyrefly: ignore [bad-argument-type]
     rows = rows.reindex(columns=diagnostics.columns, fill_value=pd.NA)
     return pd.concat((diagnostics, rows), ignore_index=True)
+
+
+def _safe_len(value: Any) -> int | float:
+    """Return ``len(value)`` when available, otherwise ``np.nan``.
+
+    Args:
+        value: Candidate object to measure.
+
+    Returns:
+        The object's length, or ``np.nan`` when the object is scalar or its
+        length implementation raises.
+    """
+    if value is None or isinstance(value, (str, bytes)):
+        return np.nan
+    if not isinstance(value, Sized):
+        return np.nan
+
+    try:
+        return len(value)
+    except Exception:
+        return np.nan
+
+
+def _append_rake_model_diagnostics(
+    diagnostics: pd.DataFrame, model: dict[str, Any]
+) -> pd.DataFrame:
+    """Append compact diagnostics for a fitted rake model.
+
+    Args:
+        diagnostics: Existing diagnostics table to append to.
+        model: Rake model metadata dictionary, usually the ``model`` object
+            returned by ``balance.weighting_methods.rake.rake``.
+
+    Returns:
+        A diagnostics table with any available rake ``model_glance`` rows
+        appended. Missing optional metadata is skipped except for the rake
+        convergence flag, which is emitted as ``NaN`` when absent.
+
+    Examples:
+        A rake model with two iterations emits compact convergence rows::
+
+            >>> import pandas as pd
+            >>> diagnostics = pd.DataFrame(columns=["metric", "val", "var"])
+            >>> model = {
+            ...     "method": "rake",
+            ...     "converged": 1,
+            ...     "iterations": pd.DataFrame({"conv": [0.5, 0.01]}),
+            ...     "variables": ["gender", "age_group"],
+            ... }
+            >>> _append_rake_model_diagnostics(diagnostics, model).to_dict("records")
+            [{'metric': 'model_glance', 'val': 1, 'var': 'converged'}, {'metric': 'model_glance', 'val': 2, 'var': 'iterations'}, {'metric': 'model_glance', 'val': 0.01, 'var': 'final_conv'}, {'metric': 'model_glance', 'val': 2, 'var': 'n_variables'}]
+    """
+    diagnostics = _concat_metric_val_var(
+        diagnostics,
+        "model_glance",
+        [_coerce_scalar(model.get("converged"))],
+        ["converged"],
+    )
+
+    iterations = model.get("iterations")
+    if isinstance(iterations, pd.DataFrame):
+        diagnostics = _concat_metric_val_var(
+            diagnostics,
+            "model_glance",
+            [len(iterations)],
+            ["iterations"],
+        )
+        if "conv" in iterations.columns and len(iterations) > 0:
+            diagnostics = _concat_metric_val_var(
+                diagnostics,
+                "model_glance",
+                [_coerce_scalar(iterations["conv"].iloc[-1])],
+                ["final_conv"],
+            )
+
+    variables = model.get("variables")
+    if variables is not None:
+        diagnostics = _concat_metric_val_var(
+            diagnostics,
+            "model_glance",
+            [_safe_len(variables)],
+            ["n_variables"],
+        )
+
+    return diagnostics
+
+
+def _append_poststratify_model_diagnostics(
+    diagnostics: pd.DataFrame, model: dict[str, Any]
+) -> pd.DataFrame:
+    """Append compact diagnostics for a fitted poststratification model.
+
+    Args:
+        diagnostics: Existing diagnostics table to append to.
+        model: Poststratification model metadata dictionary, usually the
+            ``model`` object returned by
+            ``balance.weighting_methods.poststratify.poststratify``.
+
+    Returns:
+        A diagnostics table with any available poststratification
+        ``model_glance`` rows appended. Rows that require persisted fit
+        metadata are omitted when that metadata is unavailable.
+
+    Examples:
+        Persisted poststratification metadata emits variable, matching, and
+        cell-count rows::
+
+            >>> import pandas as pd
+            >>> diagnostics = pd.DataFrame(columns=["metric", "val", "var"])
+            >>> model = {
+            ...     "method": "poststratify",
+            ...     "variables": ["gender", "age_group"],
+            ...     "strict_matching": True,
+            ...     "cell_weight_ratio": pd.Series([0.5, 2.0]),
+            ... }
+            >>> _append_poststratify_model_diagnostics(diagnostics, model).to_dict("records")
+            [{'metric': 'model_glance', 'val': 2, 'var': 'n_variables'}, {'metric': 'model_glance', 'val': 1, 'var': 'strict_matching'}, {'metric': 'model_glance', 'val': 2, 'var': 'n_cells'}]
+    """
+    variables = model.get("variables")
+    if variables is not None:
+        diagnostics = _concat_metric_val_var(
+            diagnostics,
+            "model_glance",
+            [_safe_len(variables)],
+            ["n_variables"],
+        )
+
+    if "strict_matching" in model:
+        diagnostics = _concat_metric_val_var(
+            diagnostics,
+            "model_glance",
+            [int(bool(model["strict_matching"]))],
+            ["strict_matching"],
+        )
+
+    cell_weight_ratio = model.get("cell_weight_ratio")
+    if cell_weight_ratio is not None:
+        diagnostics = _concat_metric_val_var(
+            diagnostics,
+            "model_glance",
+            [_safe_len(cell_weight_ratio)],
+            ["n_cells"],
+        )
+
+    return diagnostics
 
 
 def _build_summary(
@@ -553,7 +699,11 @@ def _build_diagnostics(
             optimizations = pd.DataFrame({"metric": metric, "var": var, "val": val})
             diagnostics = pd.concat((diagnostics, optimizations))
 
-        # TODO: add model diagnostics for other models
+        elif model["method"] == "rake":
+            diagnostics = _append_rake_model_diagnostics(diagnostics, model)
+
+        elif model["method"] == "poststratify":
+            diagnostics = _append_poststratify_model_diagnostics(diagnostics, model)
 
     # ----------------------------------------------------
     # Diagnostics on the covariates correction

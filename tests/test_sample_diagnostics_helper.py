@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from balance.sample_class import Sample
 from balance.summary_utils import (
+    _append_poststratify_model_diagnostics,
+    _append_rake_model_diagnostics,
     _build_diagnostics,
     _build_summary,
     _concat_metric_val_var,
@@ -756,3 +758,158 @@ def test_build_diagnostics_ipw_skips_missing_array_attrs() -> None:
         covars_asmd_main=covars_asmd,
     )
     assert not out.empty
+
+
+class _BrokenLen:
+    def __len__(self) -> int:
+        raise RuntimeError("length unavailable")
+
+
+def _minimal_diagnostics_inputs() -> dict[str, Any]:
+    covars_df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+    covars_asmd = pd.DataFrame(
+        {"self": [0.1], "unadjusted": [0.2], "unadjusted - self": [0.1]},
+        index=pd.Index(["a"]),
+    )
+
+    return {
+        "covars_df": covars_df,
+        "target_covars_df": covars_df.copy(),
+        "weights_summary": pd.DataFrame({"var": ["design_effect"], "val": [1.0]}),
+        "covars_asmd": covars_asmd,
+        "covars_asmd_main": covars_asmd,
+    }
+
+
+def test_build_diagnostics_includes_rake_model_glance() -> None:
+    iterations = pd.DataFrame({"conv": [0.5, 0.01]}, index=pd.Index([0, 1]))
+    model = {
+        "method": "rake",
+        "converged": 1,
+        "iterations": iterations,
+        "variables": ["a", "b"],
+    }
+
+    out = _build_diagnostics(
+        **_minimal_diagnostics_inputs(),
+        model_dict=model,
+    )
+
+    glance = out[out["metric"] == "model_glance"].set_index("var")["val"]
+    assert glance["converged"] == 1
+    assert glance["iterations"] == 2
+    assert glance["final_conv"] == 0.01
+    assert glance["n_variables"] == 2
+
+
+def test_build_diagnostics_handles_sparse_rake_metadata() -> None:
+    model = {
+        "method": "rake",
+        "iterations": pd.DataFrame({"other": [1.0]}),
+        "variables": _BrokenLen(),
+    }
+
+    out = _build_diagnostics(
+        **_minimal_diagnostics_inputs(),
+        model_dict=model,
+    )
+
+    glance = out[out["metric"] == "model_glance"].set_index("var")["val"]
+    assert np.isnan(float(glance["converged"]))
+    assert glance["iterations"] == 1
+    assert "final_conv" not in glance.index
+    assert np.isnan(float(glance["n_variables"]))
+
+
+def test_build_diagnostics_treats_scalar_strings_as_missing_lengths() -> None:
+    for method in ("rake", "poststratify"):
+        model = {
+            "method": method,
+            "variables": "ab",
+            "cell_weight_ratio": b"xy",
+        }
+
+        out = _build_diagnostics(
+            **_minimal_diagnostics_inputs(),
+            model_dict=model,
+        )
+
+        glance = out[out["metric"] == "model_glance"].set_index("var")["val"]
+        assert np.isnan(float(glance["n_variables"]))
+        if method == "poststratify":
+            assert np.isnan(float(glance["n_cells"]))
+
+
+def test_build_diagnostics_includes_poststratify_model_glance() -> None:
+    model = {
+        "method": "poststratify",
+        "variables": ["a"],
+        "strict_matching": True,
+        "cell_weight_ratio": pd.Series([0.5, 2.0], index=["x", "y"]),
+    }
+
+    out = _build_diagnostics(
+        **_minimal_diagnostics_inputs(),
+        model_dict=model,
+    )
+
+    glance = out[out["metric"] == "model_glance"].set_index("var")["val"]
+    assert glance["n_variables"] == 1
+    assert glance["strict_matching"] == 1
+    assert glance["n_cells"] == 2
+
+
+def test_build_diagnostics_handles_sparse_poststratify_metadata() -> None:
+    model = {
+        "method": "poststratify",
+        "variables": _BrokenLen(),
+        "strict_matching": False,
+        "cell_weight_ratio": _BrokenLen(),
+    }
+
+    out = _build_diagnostics(
+        **_minimal_diagnostics_inputs(),
+        model_dict=model,
+    )
+
+    glance = out[out["metric"] == "model_glance"].set_index("var")["val"]
+    assert np.isnan(float(glance["n_variables"]))
+    assert glance["strict_matching"] == 0
+    assert np.isnan(float(glance["n_cells"]))
+
+
+def test_rake_model_diagnostics_docstring_example_output() -> None:
+    diagnostics = pd.DataFrame(columns=["metric", "val", "var"])
+    model = {
+        "method": "rake",
+        "converged": 1,
+        "iterations": pd.DataFrame({"conv": [0.5, 0.01]}),
+        "variables": ["gender", "age_group"],
+    }
+
+    out = _append_rake_model_diagnostics(diagnostics, model)
+
+    assert out.to_dict("records") == [
+        {"metric": "model_glance", "val": 1, "var": "converged"},
+        {"metric": "model_glance", "val": 2, "var": "iterations"},
+        {"metric": "model_glance", "val": 0.01, "var": "final_conv"},
+        {"metric": "model_glance", "val": 2, "var": "n_variables"},
+    ]
+
+
+def test_poststratify_model_diagnostics_docstring_example_output() -> None:
+    diagnostics = pd.DataFrame(columns=["metric", "val", "var"])
+    model = {
+        "method": "poststratify",
+        "variables": ["gender", "age_group"],
+        "strict_matching": True,
+        "cell_weight_ratio": pd.Series([0.5, 2.0]),
+    }
+
+    out = _append_poststratify_model_diagnostics(diagnostics, model)
+
+    assert out.to_dict("records") == [
+        {"metric": "model_glance", "val": 2, "var": "n_variables"},
+        {"metric": "model_glance", "val": 1, "var": "strict_matching"},
+        {"metric": "model_glance", "val": 2, "var": "n_cells"},
+    ]
